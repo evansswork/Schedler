@@ -52,16 +52,19 @@ deploy/             docker-compose.yml, Caddyfile, Dockerfile
 # backend
 cd backend && python3.14 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+alembic upgrade head                     # apply migrations
+python -m app.cli seed-accounts          # create the 5 target accounts (once)
 uvicorn app.main:app --reload            # API + worker on :8000
 pytest                                   # tests
 ruff check . && ruff format --check .    # lint + format
 
 # frontend
 cd frontend && npm install
-npm run dev                              # :5173, proxies /api to :8000
-npm run build && npm run lint && npm run typecheck
+npm run dev                              # :5173, proxies /api and /m to :8000
+npm run build && npm run lint && npm run typecheck && npm test
+npm run gen:api                          # regenerate src/lib/api-types.ts (backend running)
 
-# full stack via docker
+# full stack via docker (Phase 5)
 docker compose -f deploy/docker-compose.yml up --build
 ```
 
