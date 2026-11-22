@@ -20,6 +20,7 @@ TEST_PASSWORD_HASH = hash_password(TEST_PASSWORD)
 
 def _set_env(monkeypatch: pytest.MonkeyPatch, db_path: Path, media_dir: Path) -> None:
     monkeypatch.setenv("DRY_RUN", "true")
+    monkeypatch.setenv("SCHEDULER_ENABLED", "false")  # tests run jobs explicitly
     monkeypatch.setenv("SECRET_KEY", "test-secret")
     monkeypatch.setenv("ADMIN_PASSWORD_HASH", TEST_PASSWORD_HASH)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
