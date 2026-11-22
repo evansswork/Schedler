@@ -6,15 +6,15 @@ Each phase ends with: acceptance criteria pass → merge to `main` → push → 
 
 ## Phase 1: Foundation (local, DRY_RUN) → `v0.1.0`
 
-- [ ] Backend skeleton: FastAPI, config (pydantic-settings), SQLModel + SQLite (WAL), Alembic migrations
-- [ ] Models from ARCHITECTURE §3; ULID ids; UTC handling
-- [ ] Auth: single-user password login, session cookie
-- [ ] Pipeline: yt-dlp download, ffprobe probe, orientation classify, ffmpeg normalize (only when needed)
-- [ ] Storage: `LocalPublicStorage` + `R2Storage` behind one interface
-- [ ] `FakePublisher` + `DRY_RUN=true` end-to-end
-- [ ] APScheduler wired with `process_media` job
-- [ ] Frontend skeleton: Vite + React + TS + Tailwind + shadcn/ui, layout (sidebar/top bar), login, composer (link + MP4 input, accounts, caption, schedule), Antrian list
-- [ ] Tooling: ruff, pytest, eslint, prettier, `.env.example`, README setup for macOS
+- [x] Backend skeleton: FastAPI, config (pydantic-settings), SQLModel + SQLite (WAL), Alembic migrations
+- [x] Models from ARCHITECTURE §3; ULID ids; UTC handling
+- [x] Auth: single-user password login, session cookie
+- [x] Pipeline: yt-dlp download, ffprobe probe, orientation classify, ffmpeg normalize (only when needed)
+- [x] Storage: `LocalPublicStorage` + `R2Storage` behind one interface
+- [x] `FakePublisher` + `DRY_RUN=true` end-to-end
+- [x] APScheduler wired with `process_media` job
+- [x] Frontend skeleton: Vite + React + TS + Tailwind + shadcn/ui, layout (sidebar/top bar), login, composer (link + MP4 input, accounts, caption, schedule), Antrian list
+- [x] Tooling: ruff, pytest, eslint, prettier, `.env.example`, README setup for macOS
 
 **Acceptance:** paste 3 TikTok links of the owner's own videos → all download, get the correct orientation badge, appear in Antrian as "Terjadwal" (DRY_RUN), and the files are playable.
 
