@@ -139,10 +139,10 @@ Implementations: `IgDirectPublisher`, `BufferPublisher`, `FakePublisher` (tests,
 
 ## 7. Storage
 
-`StorageBackend` interface: `put(local_path) -> public_url`, `delete(key)`.
+`StorageBackend` interface: `put(local_path, key) -> public_url` (takes ownership of the file), `delete(key)`.
 
 - `R2Storage` (dev): S3-compatible (`boto3`), public bucket or public dev URL, key = `public_token.mp4`.
-- `LocalPublicStorage` (prod): moves the file to `media/<public_token>.mp4`, served at `https://<host>/m/<public_token>.mp4`. Tokens are unguessable; directory listing is disabled.
+- `LocalPublicStorage` (prod): moves the file to `media/public/<public_token>.mp4`, served at `https://<host>/m/<public_token>.mp4`. Only `media/public/` is served (work files in `media/incoming/` never are). Tokens are unguessable; directory listing is disabled.
 
 ## 8. Security
 
@@ -155,7 +155,7 @@ Implementations: `IgDirectPublisher`, `BufferPublisher`, `FakePublisher` (tests,
 
 - `deploy/Dockerfile`: multi-stage (node build → python:3.14-slim + ffmpeg).
 - `deploy/docker-compose.yml`: `app` (restart: unless-stopped, volumes `./data`, `./media`), `caddy` (ports 80/443, volume for certs).
-- `deploy/Caddyfile`: `<host> { handle /m/* { root * /srv/media … file_server } reverse_proxy app:8000 }`.
+- `deploy/Caddyfile`: `<host> { handle_path /m/* { root * /srv/media/public … file_server } reverse_proxy app:8000 }`.
 - DNS: DuckDNS (or own domain) A record → VPS IP.
 - Backups: nightly `sqlite3 .backup` of `data/schedler.db` (keep 7).
 - CI (optional): GitHub Actions runs lint + tests on PRs to `main`.

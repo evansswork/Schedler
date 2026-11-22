@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api import api_router
@@ -21,6 +22,10 @@ def create_app() -> FastAPI:
     )
     install_error_handlers(app)
     app.include_router(api_router)
+    if settings.storage_backend == "local_public":
+        public_dir = settings.media_dir / "public"
+        public_dir.mkdir(parents=True, exist_ok=True)
+        app.mount("/m", StaticFiles(directory=public_dir), name="media")
     return app
 
 
