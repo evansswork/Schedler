@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     r2_bucket: str = ""
     r2_public_base_url: str = ""
 
+    # Platform limits change; verify against current docs (video-pipeline skill).
+    ig_reels_max_seconds: int = 900
+    tiktok_max_seconds: int = 600
+
     @model_validator(mode="after")
     def _check_and_resolve(self) -> Settings:
         missing = [] if self.secret_key else ["secret_key"]
