@@ -17,8 +17,9 @@ description: How Schedler downloads, probes, classifies and normalizes videos (y
    - Instagram: always Reels. Warn if horizontal ("Akan tampil dengan bar hitam di Reels").
    - TikTok: allowed for any orientation. Warn if horizontal.
    - Warn if duration exceeds the platform max (IG Reels and TikTok limits change, so keep them in config, not hard-coded).
-5. **Normalize** only if needed (codec not h264, pix_fmt not yuv420p, audio not aac, no faststart, or height > 1920):
-   `ffmpeg -i in.mp4 -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -vf "scale='min(1080,iw)':-2" -c:a aac -b:a 128k -ar 48000 -movflags +faststart out.mp4`
+5. **Normalize** only if needed (codec not h264, pix_fmt not yuv420p, audio present but not aac, no faststart, or long side > 1920):
+   `ffmpeg -i in.mp4 -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -vf "scale='if(gt(iw,ih),-2,min(1080,iw))':'if(gt(iw,ih),min(1080,ih),-2)'" -c:a aac -b:a 128k -ar 48000 -movflags +faststart out.mp4`
+   The filter caps the **short** side at 1080, so 1920x1080 stays 1920x1080 (a plain `scale='min(1080,iw)':-2` would shrink horizontal video to 1080 wide).
    If only faststart is missing, remux: `ffmpeg -i in.mp4 -c copy -movflags +faststart out.mp4`.
 6. **Store**: hand the final file to `StorageBackend.put()` → `public_url`. Record `size_bytes` and `sha256`.
 
