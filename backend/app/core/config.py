@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     secret_key: str = ""
     admin_password_hash: str = ""
     database_url: str = "sqlite:///./data/schedler.db"
+    scheduler_enabled: bool = True
 
     storage_backend: Literal["r2", "local_public"] = "r2"
     media_dir: Path = Path("./media")
