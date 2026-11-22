@@ -28,3 +28,7 @@ Short records of decisions already made with the owner. Do not reopen them witho
 
 ## ADR-007: Git flow (2026-11-22)
 **Decision:** `main` = production. Branch per task, Conventional Commits, and every production-ready change is merged, pushed and tagged.
+
+## ADR-008: Python 3.14 (2026-11-22)
+**Decision:** Use Python 3.14 locally and in the production image (`python:3.14-slim`), replacing the earlier 3.12 target.
+**Why:** The owner's Mac already has Homebrew `python@3.14`; one version everywhere avoids local/VPS drift.

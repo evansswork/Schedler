@@ -33,4 +33,4 @@ This file is loaded automatically by Claude Code. Full rules live in AGENTS.md; 
 - For each roadmap phase, start in plan mode: propose the plan, wait for approval, then implement.
 - Never connect real social accounts, or post to real platforms, without the owner explicitly saying so in the current session. Use mocks and the `DRY_RUN=true` mode by default.
 - When an external API behaves differently from what the docs here say, stop. Tell the owner, then update the relevant doc in the same commit as the fix.
-- The owner is on macOS (Apple Silicon). Use Homebrew for system packages (`ffmpeg`, `python@3.12`, `node`).
+- The owner is on macOS (Apple Silicon). Use Homebrew for system packages (`ffmpeg`, `python@3.14`, `node`).

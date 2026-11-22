@@ -50,7 +50,7 @@ deploy/             docker-compose.yml, Caddyfile, Dockerfile
 
 ```bash
 # backend
-cd backend && python3.12 -m venv .venv && source .venv/bin/activate
+cd backend && python3.14 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 uvicorn app.main:app --reload            # API + worker on :8000
 pytest                                   # tests
@@ -67,7 +67,7 @@ docker compose -f deploy/docker-compose.yml up --build
 
 ## Code standards
 
-- **Python 3.12**, type hints everywhere, `ruff` for lint and format, `pytest` + `pytest-asyncio` + `respx` (HTTP mocking).
+- **Python 3.14**, type hints everywhere, `ruff` for lint and format, `pytest` + `pytest-asyncio` + `respx` (HTTP mocking).
 - **TypeScript strict**, ESLint + Prettier, React function components, TanStack Query for server state.
 - All times are stored in **UTC** in the DB. Convert to `Asia/Jakarta` only at the UI and notification edges.
 - External HTTP calls go through `httpx` with timeouts and retries (exponential backoff, max 3). No bare `requests` calls.
