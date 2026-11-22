@@ -6,4 +6,4 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 
 ### Added
 - Project context docs: PRD, ARCHITECTURE, DESIGN, ROADMAP, DECISIONS, AGENTS.md, CLAUDE.md
-- Claude Code skills: platform-apis, video-pipeline, release
+- Claude Code skills: no-ai-slop, backend, frontend, ui-taste, copy-id, platform-apis, video-pipeline, testing, debug, release

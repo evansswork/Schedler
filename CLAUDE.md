@@ -12,11 +12,20 @@ This file is loaded automatically by Claude Code. Full rules live in AGENTS.md; 
 4. `docs/ROADMAP.md`: current phase and acceptance criteria. Work only on the current phase unless told otherwise.
 5. `docs/DECISIONS.md`: decisions already made. Do not reopen them without asking the owner.
 
-## Skills in this repo
+## Skills in this repo (`.claude/skills/`)
 
-- `.claude/skills/platform-apis`: Instagram, Buffer, yt-dlp and Telegram integration rules and gotchas. Load it before writing any integration code.
-- `.claude/skills/video-pipeline`: download, probe, orientation routing and ffmpeg normalization
-- `.claude/skills/release`: the test, commit, push and tag flow. Load it whenever work is "done" or the owner says "push" or "production".
+| Skill | Load when |
+|---|---|
+| `no-ai-slop` | Always: before writing code, UI or docs, and before every commit |
+| `backend` | Writing anything in `backend/` |
+| `frontend` | Writing anything in `frontend/` |
+| `ui-taste` | Creating or restyling any screen; run its checklist before UI work is done |
+| `copy-id` | Writing any user-facing Indonesian text, error messages or notifications |
+| `platform-apis` | Touching Instagram, Buffer, yt-dlp or Telegram code |
+| `video-pipeline` | Touching download, probe, orientation or ffmpeg code |
+| `testing` | Adding features, fixing bugs, or when tests fail |
+| `debug` | A post fails, a job misbehaves, or the owner reports a problem |
+| `release` | Work is done, or the owner says "push", "rilis", "production" or "deploy" |
 
 ## Working style for this repo
 
