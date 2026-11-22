@@ -42,7 +42,7 @@ Account
 
 MediaAsset
   id, source: tiktok_link|upload, source_url?, source_caption?
-  status: pending|downloading|processing|ready|failed|deleted
+  status: pending|downloading|processing|ready|failed|deleted, progress_pct (0-100, download progress)
   file_path?, public_url?, public_token (random 32 bytes, url-safe)
   width?, height?, duration_s?, orientation: vertical|horizontal|square?
   size_bytes?, sha256?, error?, created_at, updated_at
@@ -153,7 +153,7 @@ Implementations: `IgDirectPublisher`, `BufferPublisher`, `FakePublisher` (tests,
 
 ## 9. Deployment (Phase 5)
 
-- `deploy/Dockerfile`: multi-stage (node build → python:3.12-slim + ffmpeg).
+- `deploy/Dockerfile`: multi-stage (node build → python:3.14-slim + ffmpeg).
 - `deploy/docker-compose.yml`: `app` (restart: unless-stopped, volumes `./data`, `./media`), `caddy` (ports 80/443, volume for certs).
 - `deploy/Caddyfile`: `<host> { handle /m/* { root * /srv/media … file_server } reverse_proxy app:8000 }`.
 - DNS: DuckDNS (or own domain) A record → VPS IP.

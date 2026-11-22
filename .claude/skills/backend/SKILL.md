@@ -37,4 +37,4 @@ description: Backend conventions for Schedler (FastAPI, SQLModel, SQLite WAL, Al
 
 ## Style
 
-Python 3.12, full type hints, `ruff` (lint + format), async I/O with `httpx.AsyncClient` (shared client per integration, created in lifespan). Logging via stdlib `logging` with JSON formatter in production.
+Python 3.14, full type hints, `ruff` (lint + format), async I/O with `httpx.AsyncClient` (shared client per integration, created in lifespan). Logging via stdlib `logging` with JSON formatter in production.
