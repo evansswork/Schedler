@@ -11,13 +11,17 @@ from sqlmodel import Session
 from alembic import command
 from app.core.config import get_settings
 from app.core.db import get_engine
+from app.core.security import _login_failures, hash_password
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
+TEST_PASSWORD = "correct horse battery"
+TEST_PASSWORD_HASH = hash_password(TEST_PASSWORD)
 
 
 def _set_env(monkeypatch: pytest.MonkeyPatch, db_path: Path, media_dir: Path) -> None:
     monkeypatch.setenv("DRY_RUN", "true")
     monkeypatch.setenv("SECRET_KEY", "test-secret")
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", TEST_PASSWORD_HASH)
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
     monkeypatch.setenv("STORAGE_BACKEND", "local_public")
     monkeypatch.setenv("MEDIA_DIR", str(media_dir))
@@ -48,6 +52,7 @@ def env(migrated_db: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> I
     shutil.copy(migrated_db, db_path)
     _set_env(monkeypatch, db_path, tmp_path / "media")
     engine = get_engine()
+    _login_failures.clear()
     with respx.mock(assert_all_mocked=True, assert_all_called=False):
         yield
     engine.dispose()
@@ -67,3 +72,12 @@ def client() -> Iterator[TestClient]:
 
     with TestClient(create_app()) as c:
         yield c
+
+
+@pytest.fixture
+def auth_client(client: TestClient) -> TestClient:
+    """Logged-in client that sends the CSRF header on every request."""
+    res = client.post("/api/v1/auth/login", json={"password": TEST_PASSWORD})
+    assert res.status_code == 200, res.text
+    client.headers["X-CSRF-Token"] = res.json()["csrf_token"]
+    return client
