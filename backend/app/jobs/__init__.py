@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.jobs.buffer import buffer_refill_job, buffer_sync_job
+from app.jobs.maintenance import cleanup_media_job, update_ytdlp_job
 from app.jobs.notifications import daily_summary_job, send_notifications_job
 from app.jobs.process_media import process_media_job
 from app.jobs.publish_ig import publish_ig_due_job
@@ -46,6 +47,7 @@ def create_scheduler() -> AsyncIOScheduler:
         (buffer_refill_job, "buffer_refill", 120),
         (buffer_sync_job, "buffer_sync", 300),
         (send_notifications_job, "send_notifications", 15),
+        (cleanup_media_job, "cleanup_media", 3600),
     ):
         scheduler.add_job(
             func,
@@ -64,6 +66,17 @@ def create_scheduler() -> AsyncIOScheduler:
         minute=59,
         timezone="Asia/Jakarta",
         id="daily_summary",
+        max_instances=1,
+        coalesce=True,
+    )
+    # 04:00 WIB: no posting slots then.
+    scheduler.add_job(
+        update_ytdlp_job,
+        "cron",
+        hour=4,
+        minute=0,
+        timezone="Asia/Jakarta",
+        id="update_ytdlp",
         max_instances=1,
         coalesce=True,
     )

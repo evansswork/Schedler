@@ -185,6 +185,12 @@ def retry(session: Session, target_id: str) -> PostTarget:
         .join(Post, col(Post.media_id) == MediaAsset.id)
         .where(Post.id == target.post_id)
     ).one()
+    if media.status is MediaStatus.deleted:
+        raise DomainError(
+            "media_deleted",
+            "File videonya sudah dihapus otomatis. Buat post baru dengan video ini.",
+            status_code=409,
+        )
     if media.status is not MediaStatus.ready:
         raise DomainError(
             "media_unusable",
