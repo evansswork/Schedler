@@ -11,7 +11,7 @@ Self-hosted video scheduler: paste a TikTok link (of your own video) or drop an 
 
 ## Status
 
-Phase 2 (Instagram direct): Instagram Reels publish on schedule once an account is connected and `DRY_RUN=false`. YouTube and TikTok (via Buffer) arrive in Phase 3; until then their posts stay in the queue. With `DRY_RUN=true` (the default) nothing is posted and posts turn "Tayang" at their time.
+Phases 1 to 4 are built and tested with mocks; each phase's acceptance run with real accounts is still pending (see `docs/ROADMAP.md`). Instagram posts directly, YouTube and TikTok go through Buffer, and Telegram reports results. With `DRY_RUN=true` (the default) nothing is posted and posts turn "Tayang" at their time.
 
 ## Setup on macOS (Apple Silicon)
 
@@ -81,6 +81,15 @@ Schedler posts Reels through Meta's *Instagram API with Instagram Login*, for ac
 Posting for real: set `DRY_RUN=false` in `.env` and restart the backend. Each Reel's container is created 5 minutes before its time and published on the minute. A failed post is retried after 2 and 5 minutes; after the 3rd failure it shows in **Perlu perhatian**. Keep the Mac awake and the backend running: posts missed by more than 6 hours (server off) are not published late.
 
 **Slots:** every account starts with 19.30, 20.30, 21.30, 22.30 and 23.30 WIB, every day. Change them in **Akun & slot**. "Slot berikutnya (otomatis)" in the composer spreads the videos over each account's next free slots.
+
+### 7. Telegram notifications (optional)
+
+1. In Telegram, open **@BotFather**, send `/newbot` and follow the steps. Copy the bot token into `TELEGRAM_BOT_TOKEN`.
+2. Open your new bot and send `/start` (a bot cannot message you first).
+3. Get your chat id: open `https://api.telegram.org/bot<token>/getUpdates` in a browser and copy `message.chat.id` into `TELEGRAM_CHAT_ID`.
+4. Restart the backend, open **Pengaturan** and click **Kirim tes**.
+
+You get a message for every post that goes live or fails, plus a summary at 23.59 WIB. Messages written while Telegram was not set up are sent once it is.
 
 ### Checks
 

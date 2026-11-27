@@ -36,6 +36,7 @@ Account
   id, platform: ig|youtube|tiktok, label ("IG #1"), handle
   route: ig_direct|buffer
   ig_user_id?, buffer_channel_id?, buffer_key_ref?   # which Buffer API key (supports >1 org)
+  yt_category_id?                                    # YouTube category for Buffer posts
   token_enc?, token_expires_at?                      # IG long-lived token (Fernet-encrypted)
   timezone (default Asia/Jakarta), slots: JSON ["11:00","19:00"], weekdays: JSON [1..7]
   active: bool, created_at, updated_at
@@ -64,6 +65,9 @@ EventLog
 
 Setting
   key, value_enc?, value?    # runtime settings editable in UI (non-secret or encrypted)
+
+Notification                 # Telegram outbox
+  id, text, created_at, sent_at?
 ```
 
 Indexes: `PostTarget(status, scheduled_at)`, `PostTarget(account_id, scheduled_at)`, `MediaAsset(status)`.
@@ -90,10 +94,11 @@ waiting_media / queued_local / failed ──user cancel──▶ cancelled  (pub
 | `publish_ig_due` | 1 min | One step per IG target with `scheduled_at <= now + 5 min` (and `next_attempt_at` passed): `submit` creates the REELS container (`provider_ref`); `sync` polls `status_code` and, once `FINISHED` and due, checks quota → `media_publish` → permalink. A container already `PUBLISHED` (crash recovery) is just marked published |
 | `buffer_refill` | 2 min | Per Buffer account: count our own `sent_to_buffer` targets (no API call). If < 10, send the earliest `queued_local` targets with `dueAt = scheduled_at` (now + 2 min if already past). Skipped while the API budget is low |
 | `buffer_sync` | 5 min | Only `sent_to_buffer` targets 2 min past due: `post(id)` → `sent` = `published` (+ URL); still waiting = look again in 10 min; `error` = delete the Buffer post, then retry/failed like IG |
-| `cleanup_media` | 1 h | Delete files whose targets are all final, after 24 h grace; mark `deleted` |
+| `cleanup_media` | 1 h | Delete files whose targets are all published/failed/cancelled for 24 h (never while a target waits, is in Buffer or is `manual_required`; unscheduled uploads after 3 days); mark `deleted` |
 | `refresh_ig_tokens` | daily | Refresh IG long-lived tokens expiring in < 15 days; warn on Telegram if refresh fails |
-| `update_ytdlp` | daily | `pip install -U yt-dlp` inside the container (or log if not permitted) |
-| `daily_summary` | daily 21:00 WIB | Optional Telegram summary: published / failed / upcoming |
+| `update_ytdlp` | daily 04:00 WIB | `pip install -U yt-dlp`. The running process keeps the old version, so in production the app exits cleanly and Docker restarts it; locally it reports that a restart is needed |
+| `daily_summary` | daily 23:59 WIB | Telegram summary: published / failed today, scheduled tomorrow (after the owner's last slot) |
+| `send_notifications` | 15 s | Sends the Telegram outbox (see §6.4) |
 
 Startup: run `publish_ig_due` immediately. IG posts overdue by > 6 h are **not** auto-published. Mark them `failed` with the reason "Terlewat karena server mati", and notify.
 
@@ -137,7 +142,8 @@ Implementations: `IgDirectPublisher`, `BufferPublisher`, `FakePublisher` (tests,
 
 ### 6.4 Telegram
 
-- Bot API `sendMessage` to a configured `chat_id`. Messages in Indonesian. Rate-limit to ≤ 1 message per second; batch when > 5 events per minute.
+- Bot API `sendMessage` (HTML) to `TELEGRAM_CHAT_ID`. Messages in Indonesian.
+- Outbox: a `Notification` row is written in the same transaction as the change it describes (post live, final failure, manual upload, missed during downtime, video download failed, IG login dead or < 7 days). `send_notifications` sends them ≤ 1 per second; more than 5 waiting become one combined message. Without Telegram settings the rows just wait.
 
 ## 7. Storage
 

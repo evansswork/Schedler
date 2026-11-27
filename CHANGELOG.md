@@ -13,6 +13,12 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - YouTube and TikTok through Buffer (Phase 3): channel picker per account, YouTube category per account (YT #1 Science & Technology, YT #2 People & Blogs), at most 10 queued posts per channel refilled automatically, status read back after the due time, retries, and API budget guard from Buffer's rate-limit headers
 - TikTok posts Buffer cannot pull become "Upload manual" items (download file, copy caption, mark as posted)
 - Rescheduling or cancelling a post already in Buffer updates Buffer too
+- Telegram notifications (Phase 4): post live, failure, manual upload, missed posts, download failures, IG login expiry, daily summary at 23.59 WIB, "Kirim tes"; restart-safe outbox
+- Health summary: per-account meters in the sidebar, health pill with problems, "Kuota & batas" in Perlu perhatian
+- Pengaturan page: Telegram, mode uji, yt-dlp version and update, storage size, Buffer API budget, theme, shortcuts
+- Composer: caption per platform (Instagram, YouTube title + description, TikTok), hashtag counter, phone preview
+- Dark mode toggle (system / light / dark), shortcuts G then C/A/P/K/S and `/`, Antrian search
+- Jobs: delete video files 24 h after their posts settle; update yt-dlp daily at 04.00 WIB
 
 ### Changed
 - `FERNET_KEY` is now required; `IG_GRAPH_VERSION` defaults to v27.0
