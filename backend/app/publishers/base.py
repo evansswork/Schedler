@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from app.models import MediaAsset, PostTarget, Route, TargetStatus
@@ -29,3 +30,7 @@ class Publisher(Protocol):
     async def sync(self, target: PostTarget) -> SyncResult: ...
 
     async def cancel(self, target: PostTarget) -> None: ...
+
+    async def reschedule(self, target: PostTarget, at: datetime) -> None:
+        """Move a post already handed to the platform (Buffer); no-op elsewhere."""
+        ...

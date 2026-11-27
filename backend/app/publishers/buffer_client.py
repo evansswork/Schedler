@@ -8,8 +8,7 @@ import asyncio
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
-from enum import StrEnum
+from datetime import datetime, timedelta
 from typing import Any, Self
 
 import httpx
@@ -17,6 +16,7 @@ from sqlmodel import Session
 
 from app.core.db import get_engine, utcnow
 from app.models import Setting
+from app.publishers.errors import ErrorKind, PublishError
 
 ENDPOINT = "https://api.buffer.com"
 _sleep = asyncio.sleep  # tests replace this
@@ -30,23 +30,8 @@ WINDOW_MONTH = 2_592_000
 MIN_LEFT = {WINDOW_DAY: 0.2, WINDOW_MONTH: 0.1}
 
 
-class BufferErrorKind(StrEnum):
-    auth = "auth"  # API key missing/invalid; never retried
-    full = "full"  # the channel already holds its maximum of scheduled posts; wait
-    manual = "manual"  # TikTok cannot pull the file; the owner posts it by hand
-    retryable = "retryable"
-    fatal = "fatal"
-
-
-class BufferError(Exception):
-    def __init__(
-        self, kind: BufferErrorKind, human: str, *, code: str, raw: dict[str, Any] | None = None
-    ) -> None:
-        super().__init__(f"{code}: {human}")
-        self.kind = kind
-        self.human = human
-        self.code = code
-        self.raw = raw or {}
+class BufferError(PublishError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -79,14 +64,16 @@ def classify_mutation_error(message: str, service: str) -> BufferError:
     raw = {"message": message}
     if _FULL.search(message):
         human = "Antrian Buffer untuk akun ini penuh. Sisanya nunggu otomatis."
-        return BufferError(BufferErrorKind.full, human, code="buffer_full", raw=raw)
+        return BufferError(
+            ErrorKind.wait, human, code="buffer_full", raw=raw, wait=timedelta(minutes=30)
+        )
     if service == "tiktok" and _MANUAL.search(message):
         human = (
             "TikTok belum bisa diposting lewat Buffer. Upload manual: unduh file dan salin caption."
         )
-        return BufferError(BufferErrorKind.manual, human, code="buffer_tiktok_manual", raw=raw)
+        return BufferError(ErrorKind.manual, human, code="buffer_tiktok_manual", raw=raw)
     human = f"Buffer menolak post: {message}"
-    return BufferError(BufferErrorKind.retryable, human, code="buffer_rejected", raw=raw)
+    return BufferError(ErrorKind.retryable, human, code="buffer_rejected", raw=raw)
 
 
 def parse_rate_limit(headers: httpx.Headers) -> dict[int, dict[str, int]]:
@@ -166,19 +153,17 @@ class BufferClient:
                 if last:
                     raw = {"exception": repr(exc)}
                     raise BufferError(
-                        BufferErrorKind.retryable, UNAVAILABLE, code="buffer_network", raw=raw
+                        ErrorKind.retryable, UNAVAILABLE, code="buffer_network", raw=raw
                     ) from exc
             else:
                 save_rate_limit(self.key_ref, parse_rate_limit(res.headers))
                 body = _json(res)
                 if res.status_code == 401:
-                    raise BufferError(
-                        BufferErrorKind.auth, AUTH_FAILED, code="buffer_401", raw=body
-                    )
+                    raise BufferError(ErrorKind.reconnect, AUTH_FAILED, code="buffer_401", raw=body)
                 if res.status_code == 429:
                     if last:
                         raise BufferError(
-                            BufferErrorKind.retryable, RATE_LIMITED, code="buffer_429", raw=body
+                            ErrorKind.retryable, RATE_LIMITED, code="buffer_429", raw=body
                         )
                     retry_after = res.headers.get("retry-after", "")
                     if retry_after.isdigit():
@@ -186,12 +171,12 @@ class BufferClient:
                 elif res.status_code >= 500:
                     if last:
                         raise BufferError(
-                            BufferErrorKind.retryable, UNAVAILABLE, code="buffer_5xx", raw=body
+                            ErrorKind.retryable, UNAVAILABLE, code="buffer_5xx", raw=body
                         )
                 elif errors := body.get("errors"):
                     # GraphQL-level errors: schema mismatch or bad input. Not retried.
                     raise BufferError(
-                        BufferErrorKind.fatal,
+                        ErrorKind.fatal,
                         "Permintaan ke Buffer nggak valid. Detailnya ada di log server.",
                         code="buffer_graphql",
                         raw={"errors": errors},
@@ -200,7 +185,7 @@ class BufferClient:
                     return body.get("data") or {}
                 else:
                     raise BufferError(
-                        BufferErrorKind.fatal,
+                        ErrorKind.fatal,
                         UNAVAILABLE,
                         code=f"buffer_{res.status_code}",
                         raw=body,
@@ -269,7 +254,7 @@ class BufferClient:
         )
         if message := data[name].get("message"):
             raise BufferError(
-                BufferErrorKind.fatal,
+                ErrorKind.fatal,
                 f"Buffer menolak perubahan: {message}",
                 code=f"buffer_{what}_rejected",
                 raw={"message": message},

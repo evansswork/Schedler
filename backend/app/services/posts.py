@@ -1,8 +1,10 @@
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 
 from pydantic import AwareDatetime, BaseModel
 from sqlmodel import Session, col, select
 
+from app.core.config import get_settings
 from app.core.db import utcnow
 from app.core.errors import DomainError
 from app.models import (
@@ -15,6 +17,9 @@ from app.models import (
     ScheduleMode,
     TargetStatus,
 )
+from app.publishers import get_publisher
+from app.publishers.base import Publisher
+from app.publishers.errors import PublishError
 from app.services.routing import youtube_kind
 from app.services.slots import next_free_slots
 
@@ -125,8 +130,14 @@ def create_batch(session: Session, batch: PostBatchIn) -> list[PostTarget]:
     return targets
 
 
-RESCHEDULABLE = (TargetStatus.waiting_media, TargetStatus.queued_local)
-CANCELLABLE = (TargetStatus.waiting_media, TargetStatus.queued_local, TargetStatus.failed)
+RESCHEDULABLE = (TargetStatus.waiting_media, TargetStatus.queued_local, TargetStatus.sent_to_buffer)
+CANCELLABLE = (
+    TargetStatus.waiting_media,
+    TargetStatus.queued_local,
+    TargetStatus.sent_to_buffer,
+    TargetStatus.failed,
+    TargetStatus.manual_required,
+)
 
 
 class RescheduleIn(BaseModel):
@@ -141,7 +152,7 @@ def _target(session: Session, target_id: str) -> PostTarget:
     return target
 
 
-def reschedule(session: Session, body: RescheduleIn) -> list[PostTarget]:
+async def reschedule(session: Session, body: RescheduleIn) -> list[PostTarget]:
     if body.scheduled_at < utcnow() - PAST_GRACE:
         raise DomainError(
             "time_in_past", "Waktu tayang sudah lewat. Pilih waktu yang akan datang.", 422
@@ -156,6 +167,8 @@ def reschedule(session: Session, body: RescheduleIn) -> list[PostTarget]:
             status_code=409,
         )
     for t in targets:
+        if t.status is TargetStatus.sent_to_buffer:  # Buffer first, so both stay in step
+            await _on_platform(session, t, lambda p, t=t: p.reschedule(t, body.scheduled_at))
         t.scheduled_at = body.scheduled_at
         t.next_attempt_at = None
         session.add(t)
@@ -193,7 +206,7 @@ def retry(session: Session, target_id: str) -> PostTarget:
     return target
 
 
-def cancel(session: Session, target_id: str) -> PostTarget:
+async def cancel(session: Session, target_id: str) -> PostTarget:
     target = _target(session, target_id)
     if target.status is TargetStatus.publishing:
         raise DomainError(
@@ -202,11 +215,34 @@ def cancel(session: Session, target_id: str) -> PostTarget:
             status_code=409,
         )
     if target.status not in CANCELLABLE:
-        raise DomainError(
-            "not_cancellable", "Post yang sudah tayang atau dikirim nggak bisa dibatalkan.", 409
-        )
+        raise DomainError("not_cancellable", "Post yang sudah tayang nggak bisa dibatalkan.", 409)
+    if target.status is TargetStatus.sent_to_buffer:
+        await _on_platform(session, target, lambda p: p.cancel(target))
     target.status = TargetStatus.cancelled
     target.next_attempt_at = None
     session.add(target)
     session.commit()
     return target
+
+
+def mark_published(session: Session, target_id: str) -> PostTarget:
+    """The owner posted a manual_required video by hand."""
+    target = _target(session, target_id)
+    if target.status is not TargetStatus.manual_required:
+        raise DomainError("not_manual", "Cuma post manual yang bisa ditandai sudah diposting.", 409)
+    target.sqlmodel_update(
+        {"status": TargetStatus.published, "last_error": None, "last_error_human": None}
+    )
+    session.add(target)
+    session.commit()
+    return target
+
+
+async def _on_platform(
+    session: Session, target: PostTarget, action: Callable[[Publisher], Awaitable[None]]
+) -> None:
+    account = session.get_one(Account, target.account_id)
+    try:
+        await action(get_publisher(account, get_settings()))
+    except PublishError as err:
+        raise DomainError(err.code, err.human, status_code=502, detail=err.raw) from err

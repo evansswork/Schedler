@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from app.jobs.buffer import buffer_refill_job, buffer_sync_job
 from app.jobs.process_media import process_media_job
 from app.jobs.publish_ig import publish_ig_due_job
 from app.jobs.refresh_ig_tokens import refresh_ig_tokens_job
@@ -40,6 +41,19 @@ def create_scheduler() -> AsyncIOScheduler:
         coalesce=True,
         next_run_time=datetime.now(UTC),
     )
+    for func, job_id, seconds in (
+        (buffer_refill_job, "buffer_refill", 120),
+        (buffer_sync_job, "buffer_sync", 300),
+    ):
+        scheduler.add_job(
+            func,
+            "interval",
+            seconds=seconds,
+            id=job_id,
+            max_instances=1,
+            coalesce=True,
+            next_run_time=datetime.now(UTC),
+        )
     return scheduler
 
 

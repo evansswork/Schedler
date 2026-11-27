@@ -4,12 +4,12 @@ Endpoints and error codes: .claude/skills/platform-apis/SKILL.md.
 """
 
 import asyncio
-from enum import StrEnum
 from typing import Any, Self
 
 import httpx
 
 from app.core.config import get_settings
+from app.publishers.errors import ErrorKind, PublishError
 
 HOST = "https://graph.instagram.com"
 TIMEOUT_S = 30
@@ -17,22 +17,8 @@ MAX_TRIES = 3
 RETRY_BASE_S = 1.0  # tests set this to 0
 
 
-class IgErrorKind(StrEnum):
-    token = "token"  # needs the owner to reconnect; never retried
-    quota = "quota"  # publishing limit reached; retry later without counting an attempt
-    retryable = "retryable"
-    fatal = "fatal"  # retrying will not help (bad format, caption too long, restricted account)
-
-
-class IgError(Exception):
-    def __init__(
-        self, kind: IgErrorKind, human: str, *, code: str, raw: dict[str, Any] | None = None
-    ) -> None:
-        super().__init__(f"{code}: {human}")
-        self.kind = kind
-        self.human = human
-        self.code = code
-        self.raw = raw or {}
+class IgError(PublishError):
+    pass
 
 
 # Retryable messages say nothing about retrying; services/publishing.py adds that context.
@@ -41,29 +27,29 @@ RATE_LIMITED = "Instagram lagi membatasi permintaan."
 UNAVAILABLE = "Instagram lagi gangguan."
 
 # Error subcodes from Meta's IG error-code reference.
-SUBCODES: dict[int, tuple[IgErrorKind, str]] = {
+SUBCODES: dict[int, tuple[ErrorKind, str]] = {
     2207042: (
-        IgErrorKind.quota,
+        ErrorKind.wait,
         "Kuota posting IG hari ini habis. Dicoba lagi otomatis 1 jam lagi.",
     ),
     2207052: (
-        IgErrorKind.retryable,
+        ErrorKind.retryable,
         "Instagram nggak bisa mengambil file videonya. Cek storage.",
     ),
     2207026: (
-        IgErrorKind.fatal,
+        ErrorKind.fatal,
         "Instagram menolak format videonya. Upload ulang videonya sebagai MP4.",
     ),
     2207010: (
-        IgErrorKind.fatal,
+        ErrorKind.fatal,
         "Caption terlalu panjang. Maksimal 2.200 karakter, 30 hashtag dan 20 tag @.",
     ),
     2207050: (
-        IgErrorKind.fatal,
+        ErrorKind.fatal,
         "Akun Instagram ini sedang dibatasi. Buka aplikasi Instagram untuk cek.",
     ),
     2207051: (
-        IgErrorKind.fatal,
+        ErrorKind.fatal,
         "Instagram membatasi posting dari akun ini karena dianggap spam. Cek aplikasi Instagram.",
     ),
 }
@@ -80,16 +66,16 @@ def map_error(status: int, body: dict[str, Any]) -> IgError:
         kind, human = SUBCODES[subcode]
         return IgError(kind, human, code=tag, raw=body)
     if code == 190 or (err.get("type") == "OAuthException" and code in (102, 463, 467)):
-        return IgError(IgErrorKind.token, TOKEN_EXPIRED, code=tag, raw=body)
+        return IgError(ErrorKind.reconnect, TOKEN_EXPIRED, code=tag, raw=body)
     if code == 10 or 200 <= code <= 299:
         human = "Izin posting Instagram hilang. Sambungkan ulang akunnya."
-        return IgError(IgErrorKind.token, human, code=tag, raw=body)
+        return IgError(ErrorKind.reconnect, human, code=tag, raw=body)
     if code in _RATE_LIMIT_CODES or status == 429:
-        return IgError(IgErrorKind.retryable, RATE_LIMITED, code=tag, raw=body)
+        return IgError(ErrorKind.retryable, RATE_LIMITED, code=tag, raw=body)
     if status >= 500:
-        return IgError(IgErrorKind.retryable, UNAVAILABLE, code=tag, raw=body)
+        return IgError(ErrorKind.retryable, UNAVAILABLE, code=tag, raw=body)
     human = "Instagram menolak permintaan dengan error yang belum dikenal."
-    return IgError(IgErrorKind.retryable, human, code=tag, raw=body)
+    return IgError(ErrorKind.retryable, human, code=tag, raw=body)
 
 
 def _json(res: httpx.Response) -> dict[str, Any]:
@@ -127,7 +113,7 @@ class IgClient:
                 if last:
                     raw = {"exception": repr(exc)}
                     raise IgError(
-                        IgErrorKind.retryable, UNAVAILABLE, code="ig_network", raw=raw
+                        ErrorKind.retryable, UNAVAILABLE, code="ig_network", raw=raw
                     ) from exc
             else:
                 body = _json(res)
