@@ -1,4 +1,4 @@
-import { CalendarDays, CircleAlert, ListVideo, UserCog } from 'lucide-react'
+import { CalendarDays, CircleAlert, ListVideo, Settings, UserCog } from 'lucide-react'
 import { useSyncExternalStore, type ComponentType } from 'react'
 
 export const PAGES = {
@@ -6,6 +6,7 @@ export const PAGES = {
   antrian: 'Antrian',
   perhatian: 'Perlu perhatian',
   akun: 'Akun & slot',
+  pengaturan: 'Pengaturan',
 } as const
 export type Page = keyof typeof PAGES
 
@@ -14,6 +15,7 @@ export const ICONS: Record<Page, ComponentType<{ className?: string; 'aria-hidde
   antrian: ListVideo,
   perhatian: CircleAlert,
   akun: UserCog,
+  pengaturan: Settings,
 }
 
 /** "#/antrian" → "antrian"; anything unknown falls back to the calendar. */

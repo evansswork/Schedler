@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
+import { watchSystemTheme } from '@/lib/theme'
 
 import './index.css'
 
@@ -28,6 +29,8 @@ const queryClient: QueryClient = new QueryClient({
 
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html is missing #root')
+
+watchSystemTheme()
 
 createRoot(root).render(
   <StrictMode>

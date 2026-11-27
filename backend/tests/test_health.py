@@ -61,9 +61,10 @@ def test_meters_and_problems(auth_client: TestClient, session: Session) -> None:
     assert body["problems"] == [
         "1 post gagal tayang.",
         "Login IG #1 kedaluwarsa 5 hari lagi.",
-        "Kuota IG #1 hari ini hampir habis (41/50).",
         "1 post perlu diupload manual.",
+        "Kuota IG #1 hari ini hampir habis (41/50).",
     ]
+    assert body["notices"] == ["Kuota IG #1 hari ini hampir habis (41/50)."]
     by_label = {a["label"]: a for a in body["accounts"]}
     assert (by_label["IG #1"]["used"], by_label["IG #1"]["token_days_left"]) == (41, 5)
     assert (by_label["YT #1"]["used"], by_label["YT #1"]["limit"]) == (3, 10)

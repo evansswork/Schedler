@@ -1,7 +1,8 @@
+import re
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
 
-from pydantic import AwareDatetime, BaseModel
+from pydantic import AwareDatetime, BaseModel, Field
 from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
@@ -26,10 +27,27 @@ from app.services.slots import next_free_slots
 PAST_GRACE = timedelta(minutes=1)
 
 
+IG_MAX_HASHTAGS = 30
+CAPTION_MAX = 2200
+_HASHTAG = re.compile(r"(?<!\w)#\w+")
+
+
+class PlatformText(BaseModel):
+    """Per-platform override of the shared caption (empty = use the shared one)."""
+
+    caption: str | None = None
+    title: str | None = Field(default=None, max_length=100)  # YouTube only
+
+
 class PostItemIn(BaseModel):
     media_id: str
     caption: str = ""
     scheduled_at: AwareDatetime | None = None  # required in exact mode
+    overrides: dict[Platform, PlatformText] = {}
+
+    def caption_for(self, platform: Platform) -> str:
+        own = self.overrides.get(platform)
+        return (own.caption or "").strip() if own and own.caption else self.caption.strip()
 
 
 class PostBatchIn(BaseModel):
@@ -56,6 +74,21 @@ def _check(batch: PostBatchIn, accounts: dict[str, Account], media: dict[str, Me
             raise DomainError(
                 "media_unusable",
                 "Ada video yang gagal diproses. Hapus dari daftar dulu.",
+                status_code=422,
+                detail={"media_id": item.media_id},
+            )
+        ig_caption = item.caption_for(Platform.ig)
+        if len(_HASHTAG.findall(ig_caption)) > IG_MAX_HASHTAGS:
+            raise DomainError(
+                "too_many_hashtags",
+                f"Caption Instagram maksimal {IG_MAX_HASHTAGS} hashtag.",
+                status_code=422,
+                detail={"media_id": item.media_id},
+            )
+        if any(len(item.caption_for(p)) > CAPTION_MAX for p in Platform):
+            raise DomainError(
+                "caption_too_long",
+                f"Caption maksimal {CAPTION_MAX:,} karakter.".replace(",", "."),
                 status_code=422,
                 detail={"media_id": item.media_id},
             )
@@ -106,6 +139,7 @@ def create_batch(session: Session, batch: PostBatchIn) -> list[PostTarget]:
         session.add(post)
         for account_id in batch.account_ids:
             account = accounts[account_id]
+            own = item.overrides.get(account.platform)
             yt_kind = None
             if ready and account.platform is Platform.youtube:
                 assert m.orientation is not None and m.duration_s is not None
@@ -114,7 +148,8 @@ def create_batch(session: Session, batch: PostBatchIn) -> list[PostTarget]:
                 PostTarget(
                     post_id=post.id,
                     account_id=account_id,
-                    caption=caption,
+                    caption=item.caption_for(account.platform) or caption,
+                    title=(own.title or None) if own else None,
                     yt_kind=yt_kind,
                     scheduled_at=(
                         slot_times[account_id][index] if slot_times else item.scheduled_at

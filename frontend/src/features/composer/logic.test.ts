@@ -1,6 +1,16 @@
 import type { Account, Media } from '@/lib/api'
 
-import { accountWarnings, nextTimes, parseLinks, submitError, type ComposerValues } from './logic'
+import {
+  accountWarnings,
+  apiOverrides,
+  captionFor,
+  defaultTitle,
+  hashtagCount,
+  nextTimes,
+  parseLinks,
+  submitError,
+  type ComposerValues,
+} from './logic'
 
 const now = new Date('2026-11-24T05:20:00Z') // 12.20 WIB
 
@@ -66,4 +76,23 @@ test('accountWarnings names the account and only covers selected ones', () => {
   expect(accountWarnings(accounts, ['a', 'c'], media)).toEqual([
     'IG #1: Video horizontal akan tampil dengan bar hitam di Reels.',
   ])
+})
+
+describe('per-platform captions', () => {
+  const base = { mediaId: 'm', caption: 'Halo dunia\nbaris dua', time: '', captionTouched: true }
+
+  it('falls back to the shared caption and title from its first line', () => {
+    expect(captionFor(base, 'ig')).toBe('Halo dunia\nbaris dua')
+    expect(defaultTitle(base)).toBe('Halo dunia')
+  })
+
+  it('uses overrides and sends only non-empty ones', () => {
+    const row = { ...base, overrides: { youtube: { title: ' Judul ', caption: '' }, ig: {} } }
+    expect(captionFor(row, 'youtube')).toBe('Halo dunia\nbaris dua')
+    expect(apiOverrides(row)).toEqual({ youtube: { title: 'Judul' } })
+  })
+
+  it('counts hashtags', () => {
+    expect(hashtagCount('#a #b c#d #e_f')).toBe(3)
+  })
 })

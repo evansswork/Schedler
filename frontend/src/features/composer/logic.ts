@@ -1,7 +1,46 @@
 import type { Account, Media, Platform, ScheduleMode } from '@/lib/api'
 import { fromWibInput, toWibInput } from '@/lib/format'
 
-export type Row = { mediaId: string; caption: string; time: string; captionTouched: boolean }
+export type Override = { caption?: string; title?: string }
+export type Overrides = Partial<Record<Platform, Override>>
+export type Row = {
+  mediaId: string
+  caption: string
+  time: string
+  captionTouched: boolean
+  overrides?: Overrides // per-platform text; empty fields fall back to `caption`
+}
+
+export const IG_MAX_HASHTAGS = 30
+export const YT_TITLE_MAX = 100
+
+export const hashtagCount = (text: string) => (text.match(/(?<!\w)#\w+/gu) ?? []).length
+
+/** The caption a platform will get: its own override, else the shared caption. */
+export function captionFor(row: Row, platform: Platform): string {
+  return row.overrides?.[platform]?.caption?.trim() || row.caption
+}
+
+/** Default YouTube title (same rule as the backend): first non-empty caption line. */
+export function defaultTitle(row: Row): string {
+  const line = captionFor(row, 'youtube')
+    .split('\n')
+    .map((l) => l.trim())
+    .find(Boolean)
+  return (line ?? 'Video baru').slice(0, YT_TITLE_MAX)
+}
+
+/** Overrides as sent to the API: only non-empty values. */
+export function apiOverrides(row: Row): Record<string, Override> {
+  const out: Record<string, Override> = {}
+  for (const [platform, o] of Object.entries(row.overrides ?? {})) {
+    const clean: Override = {}
+    if (o?.caption?.trim()) clean.caption = o.caption.trim()
+    if (o?.title?.trim()) clean.title = o.title.trim()
+    if (Object.keys(clean).length) out[platform] = clean
+  }
+  return out
+}
 export type ComposerValues = { rows: Row[]; accountIds: string[]; mode: ScheduleMode }
 
 const HOUR = 3600_000
@@ -50,6 +89,8 @@ export function submitError(
   if (values.accountIds.length === 0) return 'Pilih minimal satu akun.'
   if (values.rows.some((r) => media.get(r.mediaId)?.status === 'failed'))
     return 'Ada video yang gagal diproses. Hapus dari daftar dulu.'
+  if (values.rows.some((r) => hashtagCount(captionFor(r, 'ig')) > IG_MAX_HASHTAGS))
+    return `Caption Instagram maksimal ${IG_MAX_HASHTAGS} hashtag.`
   if (values.mode === 'slot') return null // the server picks the times
   if (values.rows.some((r) => !r.time)) return 'Isi waktu tayang untuk setiap video.'
   if (values.rows.some((r) => new Date(fromWibInput(r.time)) < now))

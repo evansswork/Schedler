@@ -1,9 +1,10 @@
-import { CircleCheck, KeyRound } from 'lucide-react'
+import { CircleCheck, Gauge, KeyRound } from 'lucide-react'
 
 import { PlatformDot } from '@/components/PlatformDot'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { pageHref } from '@/app/route'
+import { useHealth } from '@/features/health/useHealth'
 import { CancelButton, RetryButton } from '@/features/targets/actions'
 import { formatWIB } from '@/lib/format'
 
@@ -18,6 +19,7 @@ function tokenText({ account, daysLeft }: TokenIssue) {
 export function AttentionPage() {
   const { failed, manual, accounts, tokens, count } = useAttention()
   const failedTargets = failed.data ?? []
+  const notices = useHealth().data?.notices ?? []
   const manualTargets = manual.data ?? []
 
   if (failed.isPending || manual.isPending || accounts.isPending)
@@ -41,7 +43,7 @@ export function AttentionPage() {
         </Button>
       </div>
     )
-  if (count === 0)
+  if (count === 0 && notices.length === 0)
     return (
       <div className="bg-card flex items-center gap-3 rounded-xl border px-4 py-6">
         <CircleCheck aria-hidden className="text-status-published size-5" />
@@ -51,6 +53,21 @@ export function AttentionPage() {
 
   return (
     <div className="space-y-6">
+      {notices.length > 0 && (
+        <section aria-labelledby="att-limits" className="space-y-2">
+          <h2 id="att-limits" className="text-muted-foreground text-[11px] tracking-wide uppercase">
+            Kuota & batas
+          </h2>
+          <ul className="bg-card divide-y rounded-xl border">
+            {notices.map((n) => (
+              <li key={n} className="flex items-center gap-3 px-4 py-3">
+                <Gauge aria-hidden className="text-status-waiting size-4 shrink-0" />
+                <p>{n}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {tokens.length > 0 && (
         <section aria-labelledby="att-tokens" className="space-y-2">
           <h2 id="att-tokens" className="text-muted-foreground text-[11px] tracking-wide uppercase">

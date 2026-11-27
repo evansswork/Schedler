@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, Play } from 'lucide-react'
+import { ExternalLink, Film, Play, Search } from 'lucide-react'
 import { useState } from 'react'
 
 import { PlatformDot } from '@/components/PlatformDot'
 import { StatusBadge } from '@/components/StatusBadge'
+import { QUEUE_SEARCH_ID } from '@/app/shortcuts'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CancelButton, RetryButton } from '@/features/targets/actions'
@@ -73,6 +75,13 @@ function TargetRow({ t }: { t: Target }) {
           className="bg-muted h-16 w-12 rounded-md object-cover"
           aria-hidden
         />
+      ) : t.media.status === 'deleted' ? (
+        <span
+          className="bg-muted text-muted-foreground flex h-16 w-12 items-center justify-center rounded-md"
+          title="File videonya sudah dihapus otomatis"
+        >
+          <Film aria-hidden className="size-4" />
+        </span>
       ) : (
         <Skeleton className="h-16 w-12 rounded-md" />
       )}
@@ -128,6 +137,7 @@ function TargetRow({ t }: { t: Target }) {
 
 export function QueuePage({ onCreate }: { onCreate: () => void }) {
   const [tab, setTab] = useState<Tab>('scheduled')
+  const [search, setSearch] = useState('')
   // Poll only while something is still being processed.
   const processing = useQuery({
     queryKey: queryKeys.targets(TABS.processing.statuses),
@@ -142,11 +152,34 @@ export function QueuePage({ onCreate }: { onCreate: () => void }) {
   })
 
   const spec: TabSpec = TABS[tab]
-  const kept = (current.data ?? []).filter(spec.keep ?? (() => true))
+  const needle = search.trim().toLowerCase()
+  const kept = (current.data ?? [])
+    .filter(spec.keep ?? (() => true))
+    .filter(
+      (t) =>
+        !needle ||
+        t.caption.toLowerCase().includes(needle) ||
+        t.account.label.toLowerCase().includes(needle),
+    )
   const rows = tab === 'published' ? kept.toReversed() : kept
 
   return (
     <div className="space-y-4">
+      <label className="relative block max-w-sm">
+        <span className="sr-only">Cari caption atau akun</span>
+        <Search
+          aria-hidden
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+        />
+        <Input
+          id={QUEUE_SEARCH_ID}
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Cari caption atau akun  ( / )"
+          className="h-9 pl-8"
+        />
+      </label>
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList className="h-9 max-w-full justify-start overflow-x-auto">
           {(Object.keys(TABS) as Tab[]).map((key) => (
@@ -187,6 +220,10 @@ export function QueuePage({ onCreate }: { onCreate: () => void }) {
               Coba lagi
             </Button>
           </div>
+        ) : rows.length === 0 && needle ? (
+          <p className="text-muted-foreground px-4 py-6">
+            Nggak ada post yang cocok dengan "{search.trim()}".
+          </p>
         ) : rows.length === 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-6">
             <p className="text-muted-foreground">{TABS[tab].empty}</p>

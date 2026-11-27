@@ -2,13 +2,14 @@ import { Plus } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-import { ICONS, PAGES, pageHref, type Page } from './route'
+import { ICONS, pageHref, type Page } from './route'
 
 const SHORT: Record<Page, string> = {
   kalender: 'Kalender',
   antrian: 'Antrian',
   perhatian: 'Perhatian',
   akun: 'Akun',
+  pengaturan: 'Pengaturan',
 }
 
 export function Count({ n, className }: { n: number; className?: string }) {
@@ -29,13 +30,12 @@ type BarProps = { page: Page; attention: number; onCreate: () => void }
 
 /** Phone navigation (DESIGN §2): Kalender, Antrian, +Buat, Perhatian, Akun. */
 export function TabBar({ page, attention, onCreate }: BarProps) {
-  const pages = Object.keys(PAGES) as Page[]
   return (
     <nav
       aria-label="Menu utama"
       className="bg-background fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 border-t lg:hidden"
     >
-      {pages.slice(0, 2).map((p) => (
+      {(['kalender', 'antrian'] as const).map((p) => (
         <TabLink key={p} page={p} current={page} />
       ))}
       <button
@@ -48,7 +48,7 @@ export function TabBar({ page, attention, onCreate }: BarProps) {
         </span>
         Buat
       </button>
-      {pages.slice(2).map((p) => (
+      {(['perhatian', 'akun'] as const).map((p) => (
         <TabLink key={p} page={p} current={page} count={p === 'perhatian' ? attention : 0} />
       ))}
     </nav>

@@ -3,8 +3,8 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/inter';
 
-/* Dark mode follows the system for now; a manual toggle comes in Phase 4. */
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/* <html data-theme> is set before first paint (index.html) from the saved choice or the system. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme inline {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
@@ -78,35 +78,34 @@
   --status-manual: oklch(0.541 0.281 293.009); /* violet-600 */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.129 0.042 264.695); /* slate-950 */
-    --foreground: oklch(0.968 0.007 247.896);
-    --card: oklch(0.208 0.042 265.755); /* slate-900 */
-    --card-foreground: oklch(0.968 0.007 247.896);
-    --popover: oklch(0.208 0.042 265.755);
-    --popover-foreground: oklch(0.968 0.007 247.896);
-    --primary: oklch(0.673 0.182 276.935); /* indigo-400 */
-    --primary-foreground: oklch(0.129 0.042 264.695);
-    --secondary: oklch(0.279 0.041 260.031); /* slate-800 */
-    --secondary-foreground: oklch(0.968 0.007 247.896);
-    --muted: oklch(0.279 0.041 260.031);
-    --muted-foreground: oklch(0.704 0.04 256.788); /* slate-400 */
-    --accent: oklch(0.279 0.041 260.031);
-    --accent-foreground: oklch(0.968 0.007 247.896);
-    --destructive: oklch(0.704 0.191 22.216); /* red-400 */
-    --border: oklch(0.279 0.041 260.031);
-    --input: oklch(0.372 0.044 257.287); /* slate-700 */
-    --ring: oklch(0.673 0.182 276.935);
-    --sidebar: oklch(0.208 0.042 265.755);
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --background: oklch(0.129 0.042 264.695); /* slate-950 */
+  --foreground: oklch(0.968 0.007 247.896);
+  --card: oklch(0.208 0.042 265.755); /* slate-900 */
+  --card-foreground: oklch(0.968 0.007 247.896);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.968 0.007 247.896);
+  --primary: oklch(0.673 0.182 276.935); /* indigo-400 */
+  --primary-foreground: oklch(0.129 0.042 264.695);
+  --secondary: oklch(0.279 0.041 260.031); /* slate-800 */
+  --secondary-foreground: oklch(0.968 0.007 247.896);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788); /* slate-400 */
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.968 0.007 247.896);
+  --destructive: oklch(0.704 0.191 22.216); /* red-400 */
+  --border: oklch(0.279 0.041 260.031);
+  --input: oklch(0.372 0.044 257.287); /* slate-700 */
+  --ring: oklch(0.673 0.182 276.935);
+  --sidebar: oklch(0.208 0.042 265.755);
 
-    --status-scheduled: oklch(0.673 0.182 276.935); /* indigo-400 */
-    --status-published: oklch(0.792 0.209 151.711); /* green-400 */
-    --status-waiting: oklch(0.828 0.189 84.429); /* amber-400 */
-    --status-failed: oklch(0.704 0.191 22.216); /* red-400 */
-    --status-draft: oklch(0.704 0.04 256.788); /* slate-400 */
-    --status-manual: oklch(0.702 0.183 293.541); /* violet-400 */
-  }
+  --status-scheduled: oklch(0.673 0.182 276.935); /* indigo-400 */
+  --status-published: oklch(0.792 0.209 151.711); /* green-400 */
+  --status-waiting: oklch(0.828 0.189 84.429); /* amber-400 */
+  --status-failed: oklch(0.704 0.191 22.216); /* red-400 */
+  --status-draft: oklch(0.704 0.04 256.788); /* slate-400 */
+  --status-manual: oklch(0.702 0.183 293.541); /* violet-400 */
 }
 
 @layer base {
