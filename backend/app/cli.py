@@ -11,11 +11,11 @@ from app.core.security import hash_password
 from app.models import Account, Platform, Route
 
 SEED_ACCOUNTS = [
-    ("IG #1", Platform.ig, Route.ig_direct),
-    ("IG #2", Platform.ig, Route.ig_direct),
-    ("YT #1", Platform.youtube, Route.buffer),
-    ("YT #2", Platform.youtube, Route.buffer),
-    ("TikTok", Platform.tiktok, Route.buffer),
+    ("IG #1", Platform.ig, Route.ig_direct, None),
+    ("IG #2", Platform.ig, Route.ig_direct, None),
+    ("YT #1", Platform.youtube, Route.buffer, "28"),  # AI apps: Science & Technology
+    ("YT #2", Platform.youtube, Route.buffer, "22"),  # personal vlog: People & Blogs
+    ("TikTok", Platform.tiktok, Route.buffer, None),
 ]
 
 
@@ -36,9 +36,11 @@ def seed_accounts(session: Session) -> list[str]:
     """Create the five target accounts (without tokens) if missing. Returns created labels."""
     existing = set(session.exec(select(Account.label)).all())
     created = []
-    for label, platform, route in SEED_ACCOUNTS:
+    for label, platform, route, category in SEED_ACCOUNTS:
         if label not in existing:
-            session.add(Account(label=label, platform=platform, route=route))
+            session.add(
+                Account(label=label, platform=platform, route=route, yt_category_id=category)
+            )
             created.append(label)
     session.commit()
     return created
