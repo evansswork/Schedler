@@ -43,11 +43,11 @@ Each phase ends with: acceptance criteria pass → merge to `main` → push → 
 
 ## Phase 4: Feedback and polish → `v0.4.0`
 
-- [ ] Telegram notifications + daily summary + "Kirim tes"
-- [ ] "Perlu perhatian" inbox with one-click fixes
-- [ ] Health meters in the sidebar + health pill
-- [ ] Per-platform previews in the composer; keyboard shortcuts; dark mode; mobile layout
-- [ ] `cleanup_media`, `update_ytdlp` jobs
+- [x] Telegram notifications + daily summary + "Kirim tes"
+- [x] "Perlu perhatian" inbox with one-click fixes
+- [x] Health meters in the sidebar + health pill
+- [x] Per-platform previews in the composer; keyboard shortcuts; dark mode; mobile layout
+- [x] `cleanup_media`, `update_ytdlp` jobs
 
 **Acceptance:** a full week of posts runs on the Mac without opening the dashboard, and every publish and failure arrives on Telegram.
 
