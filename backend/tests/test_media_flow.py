@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import time_machine
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
@@ -17,6 +18,7 @@ from app.models import (
     EventLog,
     MediaAsset,
     MediaStatus,
+    Platform,
     Route,
     TargetStatus,
 )
@@ -202,7 +204,11 @@ async def test_fake_publisher_contract(session: Session) -> None:
     publisher = get_publisher(ig, get_settings())
     assert isinstance(publisher, FakePublisher)
     assert await publisher.validate(target, media) == []
-    assert (await publisher.submit(target, media)).status is TargetStatus.published
+    assert (await publisher.submit(target, media)).status is TargetStatus.publishing
+    with time_machine.travel(target.scheduled_at - timedelta(minutes=1), tick=False):
+        assert (await publisher.sync(target)).status is target.status
+    with time_machine.travel(target.scheduled_at, tick=False):
+        assert (await publisher.sync(target)).status is TargetStatus.published
     buffered = await get_publisher(buffer, get_settings()).submit(target, media)
     assert buffered.status is TargetStatus.sent_to_buffer
     assert buffered.provider_ref == f"fake-{target.id}"
@@ -213,6 +219,7 @@ def test_real_publishing_refused_outside_dry_run(
 ) -> None:
     monkeypatch.setenv("DRY_RUN", "false")
     get_settings.cache_clear()
+    yt = make_account(session, label="YT #1", platform=Platform.youtube, route=Route.buffer)
     with pytest.raises(DomainError) as exc:
-        get_publisher(make_account(session), get_settings())
+        get_publisher(yt, get_settings())
     assert exc.value.code == "route_not_available"

@@ -35,15 +35,16 @@ class IgError(Exception):
         self.raw = raw or {}
 
 
+# Retryable messages say nothing about retrying; services/publishing.py adds that context.
 TOKEN_EXPIRED = "Login Instagram kedaluwarsa. Sambungkan ulang akunnya."
-RATE_LIMITED = "Instagram lagi membatasi permintaan. Dicoba lagi otomatis."
-UNAVAILABLE = "Instagram lagi gangguan. Dicoba lagi otomatis."
+RATE_LIMITED = "Instagram lagi membatasi permintaan."
+UNAVAILABLE = "Instagram lagi gangguan."
 
 # Error subcodes from Meta's IG error-code reference.
-_SUBCODES: dict[int, tuple[IgErrorKind, str]] = {
+SUBCODES: dict[int, tuple[IgErrorKind, str]] = {
     2207042: (
         IgErrorKind.quota,
-        "Kuota posting IG hari ini habis. Dijadwalkan ulang otomatis nanti.",
+        "Kuota posting IG hari ini habis. Dicoba lagi otomatis 1 jam lagi.",
     ),
     2207052: (
         IgErrorKind.retryable,
@@ -75,8 +76,8 @@ def map_error(status: int, body: dict[str, Any]) -> IgError:
     code = int(err.get("code") or 0)
     subcode = int(err.get("error_subcode") or 0)
     tag = f"ig_{code}_{subcode}" if subcode else f"ig_{code or status}"
-    if subcode in _SUBCODES:
-        kind, human = _SUBCODES[subcode]
+    if subcode in SUBCODES:
+        kind, human = SUBCODES[subcode]
         return IgError(kind, human, code=tag, raw=body)
     if code == 190 or (err.get("type") == "OAuthException" and code in (102, 463, 467)):
         return IgError(IgErrorKind.token, TOKEN_EXPIRED, code=tag, raw=body)
@@ -87,7 +88,7 @@ def map_error(status: int, body: dict[str, Any]) -> IgError:
         return IgError(IgErrorKind.retryable, RATE_LIMITED, code=tag, raw=body)
     if status >= 500:
         return IgError(IgErrorKind.retryable, UNAVAILABLE, code=tag, raw=body)
-    human = "Instagram menolak permintaan dengan error yang belum dikenal. Dicoba lagi otomatis."
+    human = "Instagram menolak permintaan dengan error yang belum dikenal."
     return IgError(IgErrorKind.retryable, human, code=tag, raw=body)
 
 

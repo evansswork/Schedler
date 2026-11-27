@@ -2,19 +2,20 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import AwareDatetime
 from sqlmodel import Session, SQLModel, col, select
 
 from app.api.accounts import AccountRead
 from app.api.media import MediaRead
 from app.core.db import get_session
 from app.models import Account, MediaAsset, Post, PostTarget, TargetStatus, YtKind
-from app.services.posts import PostBatchIn, create_batch
+from app.services.posts import PostBatchIn, RescheduleIn, cancel, create_batch, reschedule, retry
 
 router = APIRouter()
 
-# shortcut: plain limit, no cursor; fine at ~25 posts/day. Add keyset paging on
-# (scheduled_at, id) once Antrian holds more than a few hundred rows.
-MAX_TARGETS = 200
+# shortcut: plain limit, no cursor; a month of the calendar is ~800 targets at 25/day.
+# Add keyset paging on (scheduled_at, id) once unfiltered lists outgrow this.
+MAX_TARGETS = 1000
 
 
 class TargetRead(SQLModel):
@@ -53,6 +54,8 @@ def list_targets(
     session: Annotated[Session, Depends(get_session)],
     status: Annotated[list[TargetStatus] | None, Query()] = None,
     ids: Annotated[list[str] | None, Query()] = None,
+    start: AwareDatetime | None = None,
+    end: AwareDatetime | None = None,
 ) -> list[TargetRead]:
     query = (
         select(PostTarget, Account, MediaAsset)
@@ -66,4 +69,28 @@ def list_targets(
         query = query.where(col(PostTarget.status).in_(status))
     if ids is not None:
         query = query.where(col(PostTarget.id).in_(ids))
+    if start is not None:
+        query = query.where(col(PostTarget.scheduled_at) >= start)
+    if end is not None:
+        query = query.where(col(PostTarget.scheduled_at) < end)
     return [_read(t, a, m) for t, a, m in session.exec(query)]
+
+
+@router.patch("/targets/reschedule")
+def reschedule_targets(
+    body: RescheduleIn, session: Annotated[Session, Depends(get_session)]
+) -> list[TargetRead]:
+    targets = reschedule(session, body)
+    return list_targets(session, ids=[t.id for t in targets])
+
+
+@router.post("/targets/{target_id}/retry")
+def retry_target(target_id: str, session: Annotated[Session, Depends(get_session)]) -> TargetRead:
+    retry(session, target_id)
+    return list_targets(session, ids=[target_id])[0]
+
+
+@router.post("/targets/{target_id}/cancel")
+def cancel_target(target_id: str, session: Annotated[Session, Depends(get_session)]) -> TargetRead:
+    cancel(session, target_id)
+    return list_targets(session, ids=[target_id])[0]
