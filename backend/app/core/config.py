@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     storage_backend: Literal["r2", "local_public"] = "r2"
     media_dir: Path = Path("./media")
+    static_dir: Path = Path("./frontend/dist")  # built SPA; served at / when it exists
     public_media_base_url: str = ""
     r2_account_id: str = ""
     r2_access_key_id: str = ""
@@ -72,6 +73,8 @@ class Settings(BaseSettings):
         # Relative paths in .env are relative to the repo root, not the process cwd.
         if not self.media_dir.is_absolute():
             self.media_dir = REPO_ROOT / self.media_dir
+        if not self.static_dir.is_absolute():
+            self.static_dir = REPO_ROOT / self.static_dir
         prefix = "sqlite:///"
         db_path = Path(self.database_url.removeprefix(prefix))
         if self.database_url.startswith(prefix) and not db_path.is_absolute():

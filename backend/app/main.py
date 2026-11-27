@@ -51,6 +51,9 @@ def create_app() -> FastAPI:
         public_dir = settings.media_dir / "public"
         public_dir.mkdir(parents=True, exist_ok=True)
         app.mount("/m", StaticFiles(directory=public_dir), name="media")
+    if (settings.static_dir / "index.html").exists():
+        # Production: one origin for SPA + API. Routes are hash-based, so only / is needed.
+        app.mount("/", StaticFiles(directory=settings.static_dir, html=True), name="spa")
     return app
 
 

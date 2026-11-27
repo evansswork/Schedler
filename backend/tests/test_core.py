@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -66,3 +67,15 @@ def test_settings_fail_fast_on_missing_r2(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("STORAGE_BACKEND", "r2")
     with pytest.raises(ValidationError, match="R2_ACCOUNT_ID"):
         Settings(_env_file=None)  # type: ignore[call-arg]
+
+
+def test_built_frontend_is_served_at_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from app.core.config import get_settings
+    from app.main import create_app
+
+    (tmp_path / "index.html").write_text("<title>Schedler</title>")
+    monkeypatch.setenv("STATIC_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    with TestClient(create_app()) as client:
+        assert "<title>Schedler</title>" in client.get("/").text
+        assert client.get("/api/v1/health").json() == {"status": "ok"}
