@@ -27,6 +27,13 @@ from app.publishers.errors import ErrorKind, PublishError
 from app.publishers.ig_client import IgError
 from app.services.accounts import mark_token_invalid
 from app.services.events import log_event
+from app.services.notifications import (
+    attention_link,
+    esc,
+    notify,
+    notify_failed,
+    notify_published,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +70,13 @@ def fail_missed_ig() -> int:
         s.commit()
     if result.rowcount:
         logger.warning("fail_missed_ig: %d IG posts missed", result.rowcount)
+        with Session(get_engine()) as s:
+            notify(
+                s,
+                f"⚠️ {result.rowcount} post IG terlewat karena server mati dan nggak diposting "
+                f"telat.\nJadwalkan ulang: {esc(attention_link())}",
+            )
+            s.commit()
     return result.rowcount
 
 
@@ -140,6 +154,7 @@ async def advance(target_id: str, recheck: timedelta | None = None) -> bool:
     if applied and status is TargetStatus.published:
         with Session(get_engine()) as s:
             log_event(s, EventLevel.info, "target", target_id, "Tayang", {"url": url})
+            notify_published(s, account, s.get_one(PostTarget, target_id))
             s.commit()
     return applied and status is TargetStatus.published
 
@@ -194,4 +209,6 @@ def _on_error(target_id: str, was: TargetStatus, err: PublishError) -> None:
             ):
                 mark_token_invalid(s, s.get_one(Account, target.account_id))
         s.add(target)
+        if target.status in (TargetStatus.failed, TargetStatus.manual_required):
+            notify_failed(s, s.get_one(Account, target.account_id), target)
         s.commit()

@@ -28,6 +28,7 @@ from app.pipeline.download import download_tiktok, validate_tiktok_url
 from app.pipeline.normalize import normalize
 from app.pipeline.probe import ProbeResult
 from app.services.events import log_event
+from app.services.notifications import esc, notify
 from app.services.routing import youtube_kind
 from app.storage import get_storage
 
@@ -193,6 +194,8 @@ def _mark_failed(media_id: str, err: DomainError) -> None:
             target.last_error = err.code
             target.last_error_human = err.message
         log_event(s, EventLevel.error, "media", media_id, err.code, err.detail)
+        source = f"\n{esc(media.source_url)}" if media.source_url else ""
+        notify(s, f"❌ Video gagal diproses: {esc(err.message)}{source}")
         s.commit()
     for leftover in incoming_dir().glob(f"{media_id}*"):
         leftover.unlink()
