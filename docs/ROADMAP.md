@@ -32,12 +32,12 @@ Each phase ends with: acceptance criteria pass → merge to `main` → push → 
 
 ## Phase 3: Buffer (YouTube + TikTok) → `v0.3.0`
 
-- [ ] Buffer key + channel picker; map channels to accounts
-- [ ] Verify the live GraphQL schema for video posts + YouTube/TikTok metadata. Record field names in the platform-apis skill.
-- [ ] `BufferPublisher`: schedule, cancel, sync
-- [ ] `buffer_refill` (≤ 10 per channel) + `buffer_sync` jobs + API budget guard
-- [ ] TikTok feasibility test. If it fails, `manual_required` flow (download file + copy caption).
-- [ ] Edit/cancel propagation to Buffer
+- [x] Buffer key + channel picker; map channels to accounts
+- [ ] Verify the live GraphQL schema for video posts + YouTube/TikTok metadata. Record field names in the platform-apis skill. (Fields from the docs are recorded; live check pending a key.)
+- [x] `BufferPublisher`: schedule, cancel, sync
+- [x] `buffer_refill` (≤ 10 per channel) + `buffer_sync` jobs + API budget guard
+- [ ] TikTok feasibility test. If it fails, `manual_required` flow (download file + copy caption). (Manual flow built; live test pending.)
+- [x] Edit/cancel propagation to Buffer
 
 **Acceptance:** 15 videos queued for YT #1 → 10 go to Buffer, 5 wait, and the refill sends more as posts publish; Shorts vs. video are routed correctly; TikTok is either posting or cleanly `manual_required`.
 
