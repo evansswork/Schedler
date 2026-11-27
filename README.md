@@ -13,6 +13,8 @@ Self-hosted video scheduler: paste a TikTok link (of your own video) or drop an 
 
 Phases 1 to 4 are built and tested with mocks; each phase's acceptance run with real accounts is still pending (see `docs/ROADMAP.md`). Instagram posts directly, YouTube and TikTok go through Buffer, and Telegram reports results. With `DRY_RUN=true` (the default) nothing is posted and posts turn "Tayang" at their time.
 
+Production on a VPS (Docker + Caddy + DuckDNS): [docs/DEPLOY.md](docs/DEPLOY.md).
+
 ## Setup on macOS (Apple Silicon)
 
 ### 1. System packages

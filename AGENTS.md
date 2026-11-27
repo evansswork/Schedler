@@ -64,8 +64,8 @@ npm run dev                              # :5173, proxies /api and /m to :8000
 npm run build && npm run lint && npm run typecheck && npm test
 npm run gen:api                          # regenerate src/lib/api-types.ts (backend running)
 
-# full stack via docker (Phase 5)
-docker compose -f deploy/docker-compose.yml up --build
+# full stack via docker (production; run from the repo root, see docs/DEPLOY.md)
+docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
 ## Code standards

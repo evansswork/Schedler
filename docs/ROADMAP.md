@@ -53,11 +53,11 @@ Each phase ends with: acceptance criteria pass → merge to `main` → push → 
 
 ## Phase 5: Production on VPS → `v1.0.0`
 
-- [ ] Dockerfile (multi-stage), docker-compose, Caddyfile
-- [ ] VPS setup guide (Ubuntu, Docker, firewall), DuckDNS, HTTPS
-- [ ] Switch storage to `LocalPublicStorage`; migrate the DB from the Mac
-- [ ] Nightly SQLite backup; restart policy; health endpoint
-- [ ] Optional: GitHub Actions CI (lint + tests)
+- [x] Dockerfile (multi-stage), docker-compose, Caddyfile
+- [x] VPS setup guide (Ubuntu, Docker, firewall), DuckDNS, HTTPS
+- [ ] Switch storage to `LocalPublicStorage`; migrate the DB from the Mac (documented in docs/DEPLOY.md; done on the VPS)
+- [x] Nightly SQLite backup; restart policy; health endpoint
+- [x] Optional: GitHub Actions CI (lint + tests)
 
 **Acceptance:** the dashboard is reachable over HTTPS from a phone; scheduled posts on all 5 accounts publish for 7 days straight with ≥ 98% success.
 
