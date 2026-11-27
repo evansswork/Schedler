@@ -129,3 +129,72 @@
     }
   }
 }
+
+/* FullCalendar (v6 injects its own base CSS); map its variables to our tokens. */
+.schedler-calendar .fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--card);
+  --fc-neutral-bg-color: var(--muted);
+  --fc-today-bg-color: color-mix(in oklch, var(--primary) 6%, transparent);
+  --fc-now-indicator-color: var(--status-failed);
+  --fc-highlight-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  --fc-small-font-size: 12px;
+  --fc-event-text-color: var(--foreground);
+  --fc-event-border-color: var(--border);
+  --fc-event-bg-color: var(--card);
+  font-size: 13px;
+}
+.schedler-calendar .fc .fc-col-header-cell-cushion,
+.schedler-calendar .fc .fc-daygrid-day-number {
+  color: var(--foreground);
+  font-weight: 500;
+  text-decoration: none;
+}
+.schedler-calendar .fc .fc-timegrid-slot {
+  height: 28px;
+}
+.schedler-calendar .fc .fc-timegrid-slot-label-cushion,
+.schedler-calendar .fc .fc-more-link {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.schedler-calendar .fc .schedler-chip {
+  min-height: 24px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--chip-tone);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: none;
+  cursor: default;
+}
+.schedler-calendar .fc .schedler-chip.fc-event-draggable {
+  cursor: grab;
+}
+.schedler-calendar .fc .schedler-chip:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.schedler-calendar .fc .fc-daygrid-event.schedler-chip {
+  margin-inline: 4px;
+}
+.tone-queued_local,
+.tone-sent_to_buffer {
+  --chip-tone: var(--status-scheduled);
+}
+.tone-published {
+  --chip-tone: var(--status-published);
+}
+.tone-waiting_media,
+.tone-publishing {
+  --chip-tone: var(--status-waiting);
+}
+.tone-failed {
+  --chip-tone: var(--status-failed);
+}
+.tone-draft {
+  --chip-tone: var(--status-draft);
+}
+.tone-manual_required {
+  --chip-tone: var(--status-manual);
+}

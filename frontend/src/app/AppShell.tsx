@@ -1,14 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ListVideo, LogOut, Plus } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { LogOut, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { PlatformDot } from '@/components/PlatformDot'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AccountsPage } from '@/features/accounts/AccountsPage'
+import { AttentionPage } from '@/features/attention/AttentionPage'
+import { useAttention } from '@/features/attention/useAttention'
+import { CalendarPage } from '@/features/calendar/CalendarPage'
 import { ComposerPanel } from '@/features/composer/ComposerPanel'
 import { QueuePage } from '@/features/queue/QueuePage'
-import { api, type Account, type Me } from '@/lib/api'
-import { queryKeys } from '@/lib/queryKeys'
+import { api, type Me } from '@/lib/api'
+import { cn } from '@/lib/utils'
+
+import { Count, TabBar } from './Navigation'
+import { ICONS, PAGES, pageHref, usePage, type Page } from './route'
 
 function isTyping(el: EventTarget | null) {
   return (
@@ -19,15 +26,15 @@ function isTyping(el: EventTarget | null) {
 
 export function AppShell({ me }: { me: Me }) {
   const queryClient = useQueryClient()
+  const page = usePage()
   const [composerOpen, setComposerOpen] = useState(false)
-  const accounts = useQuery({
-    queryKey: queryKeys.accounts,
-    queryFn: () => api<Account[]>('/accounts'),
-  })
+  const attention = useAttention()
+  const accounts = attention.accounts
   const logout = useMutation({
     mutationFn: () => api<undefined>('/auth/logout', { method: 'POST' }),
     onSuccess: () => queryClient.clear(),
   })
+  const openComposer = () => setComposerOpen(true)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -46,6 +53,8 @@ export function AppShell({ me }: { me: Me }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const pages = Object.keys(PAGES) as Page[]
+
   return (
     <div className="flex min-h-svh flex-col">
       {me.dry_run && (
@@ -60,23 +69,29 @@ export function AppShell({ me }: { me: Me }) {
         <aside className="bg-sidebar hidden w-60 shrink-0 flex-col border-r lg:flex">
           <div className="px-4 py-4 font-medium">Schedler</div>
           <div className="px-3">
-            <Button
-              size="lg"
-              className="w-full justify-start"
-              onClick={() => setComposerOpen(true)}
-            >
+            <Button size="lg" className="w-full justify-start" onClick={openComposer}>
               <Plus aria-hidden /> Buat post
               <kbd className="ml-auto text-[11px] opacity-70">N</kbd>
             </Button>
           </div>
-          <nav aria-label="Menu utama" className="mt-3 px-3">
-            <a
-              href="#antrian"
-              aria-current="page"
-              className="bg-accent flex h-9 items-center gap-2 rounded-md px-2.5"
-            >
-              <ListVideo aria-hidden className="size-4" /> Antrian
-            </a>
+          <nav aria-label="Menu utama" className="mt-3 space-y-0.5 px-3">
+            {pages.map((p) => {
+              const Icon = ICONS[p]
+              return (
+                <a
+                  key={p}
+                  href={pageHref(p)}
+                  aria-current={page === p ? 'page' : undefined}
+                  className={cn(
+                    'hover:bg-accent flex h-9 items-center gap-2 rounded-md px-2.5',
+                    page === p && 'bg-accent font-medium',
+                  )}
+                >
+                  <Icon aria-hidden className="size-4" /> {PAGES[p]}
+                  {p === 'perhatian' && <Count n={attention.count} className="ml-auto" />}
+                </a>
+              )
+            })}
           </nav>
           <div className="mt-6 border-t px-4 pt-4">
             <p className="text-muted-foreground mb-2 text-[11px] tracking-wide uppercase">Akun</p>
@@ -90,6 +105,11 @@ export function AppShell({ me }: { me: Me }) {
                 {accounts.data?.map((a) => (
                   <li key={a.id} className="flex h-7 items-center gap-2">
                     <PlatformDot platform={a.platform} /> {a.label}
+                    {a.route === 'ig_direct' && !a.connected && (
+                      <span className="text-muted-foreground ml-auto text-[12px]">
+                        belum terhubung
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -110,20 +130,29 @@ export function AppShell({ me }: { me: Me }) {
           </div>
         </aside>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pb-16 lg:pb-0">
           <header className="flex h-14 items-center justify-between gap-3 border-b px-4 lg:px-6">
-            <h1 id="antrian" className="text-xl font-medium">
-              Antrian
-            </h1>
-            <Button size="lg" className="h-11 lg:hidden" onClick={() => setComposerOpen(true)}>
-              <Plus aria-hidden /> Buat post
+            <h1 className="text-xl font-medium">{PAGES[page]}</h1>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="text-muted-foreground h-11 lg:hidden"
+              onClick={() => logout.mutate()}
+            >
+              <LogOut aria-hidden /> Keluar
             </Button>
           </header>
           <main className="p-4 lg:p-6">
-            <QueuePage onCreate={() => setComposerOpen(true)} />
+            {page === 'kalender' && <CalendarPage />}
+            {page === 'antrian' && <QueuePage onCreate={openComposer} />}
+            {page === 'perhatian' && <AttentionPage />}
+            {page === 'akun' && <AccountsPage />}
           </main>
         </div>
       </div>
+
+      <TabBar page={page} attention={attention.count} onCreate={openComposer} />
+
       <ComposerPanel
         open={composerOpen}
         onOpenChange={setComposerOpen}

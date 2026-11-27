@@ -13,7 +13,7 @@ type Props = {
   index: number
   media: Media | undefined
   caption: string
-  time: string
+  time: string | null // null: the time comes from the account slots
   onCaption: (value: string) => void
   onTime: (value: string) => void
   onRemove: () => void
@@ -84,15 +84,17 @@ export function VideoRow({ index, media, caption, time, onCaption, onTime, onRem
           }
           aria-label={`Caption video ${n}`}
         />
-        <label className="flex flex-col gap-1 text-[13px] sm:flex-row sm:items-center sm:gap-2">
-          <span className="text-muted-foreground shrink-0">Waktu tayang (WIB)</span>
-          <Input
-            type="datetime-local"
-            value={time}
-            onChange={(e) => onTime(e.target.value)}
-            className="h-9 tabular-nums"
-          />
-        </label>
+        {time !== null && (
+          <label className="flex flex-col gap-1 text-[13px] sm:flex-row sm:items-center sm:gap-2">
+            <span className="text-muted-foreground shrink-0">Waktu tayang (WIB)</span>
+            <Input
+              type="datetime-local"
+              value={time}
+              onChange={(e) => onTime(e.target.value)}
+              className="h-9 tabular-nums"
+            />
+          </label>
+        )}
       </div>
     </li>
   )

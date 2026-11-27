@@ -1,8 +1,8 @@
-import type { Account, Media, Platform } from '@/lib/api'
+import type { Account, Media, Platform, ScheduleMode } from '@/lib/api'
 import { fromWibInput, toWibInput } from '@/lib/format'
 
 export type Row = { mediaId: string; caption: string; time: string; captionTouched: boolean }
-export type ComposerValues = { rows: Row[]; accountIds: string[] }
+export type ComposerValues = { rows: Row[]; accountIds: string[]; mode: ScheduleMode }
 
 const HOUR = 3600_000
 const TIKTOK_HOSTS = new Set([
@@ -50,6 +50,7 @@ export function submitError(
   if (values.accountIds.length === 0) return 'Pilih minimal satu akun.'
   if (values.rows.some((r) => media.get(r.mediaId)?.status === 'failed'))
     return 'Ada video yang gagal diproses. Hapus dari daftar dulu.'
+  if (values.mode === 'slot') return null // the server picks the times
   if (values.rows.some((r) => !r.time)) return 'Isi waktu tayang untuk setiap video.'
   if (values.rows.some((r) => new Date(fromWibInput(r.time)) < now))
     return 'Ada waktu tayang yang sudah lewat. Pilih waktu yang akan datang.'

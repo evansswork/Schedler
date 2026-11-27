@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Play } from 'lucide-react'
+import { ExternalLink, Play } from 'lucide-react'
 import { useState } from 'react'
 
 import { PlatformDot } from '@/components/PlatformDot'
@@ -7,6 +7,8 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CancelButton, RetryButton } from '@/features/targets/actions'
+import { CANCELLABLE } from '@/features/targets/status'
 import { api, type Target, type TargetStatus } from '@/lib/api'
 import { formatWIB } from '@/lib/format'
 import { queryKeys } from '@/lib/queryKeys'
@@ -22,6 +24,11 @@ const TABS = {
     statuses: ['waiting_media', 'publishing'],
     empty: 'Nggak ada video yang lagi diproses.',
   },
+  published: {
+    label: 'Tayang',
+    statuses: ['published'],
+    empty: 'Belum ada yang tayang.',
+  },
   failed: {
     label: 'Gagal',
     statuses: ['failed'],
@@ -36,7 +43,7 @@ function fetchTargets(statuses: readonly TargetStatus[]) {
 
 function TargetRow({ t }: { t: Target }) {
   return (
-    <li className="grid grid-cols-[48px_1fr_auto] gap-3 px-4 py-3 md:grid-cols-[48px_1fr_140px_220px_110px_44px] md:items-center">
+    <li className="grid grid-cols-[48px_1fr_auto] gap-3 px-4 py-3 md:grid-cols-[48px_1fr_140px_220px_110px_120px] md:items-center">
       {t.media.public_url ? (
         <video
           src={t.media.public_url}
@@ -70,15 +77,30 @@ function TargetRow({ t }: { t: Target }) {
       <span className="hidden md:block">
         <StatusBadge status={t.status} />
       </span>
-      {t.media.public_url ? (
-        <Button asChild variant="ghost" size="icon-lg">
-          <a href={t.media.public_url} target="_blank" rel="noreferrer" aria-label="Putar video">
-            <Play aria-hidden />
-          </a>
-        </Button>
-      ) : (
-        <span className="hidden md:block" />
-      )}
+      <div className="flex items-center justify-end gap-1">
+        {t.status === 'failed' && <RetryButton target={t} compact />}
+        {t.published_url ? (
+          <Button asChild variant="ghost" size="icon-lg">
+            <a href={t.published_url} target="_blank" rel="noreferrer" aria-label="Buka post">
+              <ExternalLink aria-hidden />
+            </a>
+          </Button>
+        ) : (
+          t.media.public_url && (
+            <Button asChild variant="ghost" size="icon-lg">
+              <a
+                href={t.media.public_url}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Putar video"
+              >
+                <Play aria-hidden />
+              </a>
+            </Button>
+          )
+        )}
+        {CANCELLABLE.includes(t.status) && <CancelButton target={t} />}
+      </div>
     </li>
   )
 }
@@ -116,7 +138,7 @@ export function QueuePage({ onCreate }: { onCreate: () => void }) {
       </Tabs>
 
       <div className="bg-card rounded-xl border">
-        <div className="text-muted-foreground hidden grid-cols-[48px_1fr_140px_220px_110px_44px] gap-3 border-b px-4 py-2 text-[11px] tracking-wide uppercase md:grid">
+        <div className="text-muted-foreground hidden grid-cols-[48px_1fr_140px_220px_110px_120px] gap-3 border-b px-4 py-2 text-[11px] tracking-wide uppercase md:grid">
           <span />
           <span>Caption</span>
           <span>Akun</span>
@@ -151,7 +173,7 @@ export function QueuePage({ onCreate }: { onCreate: () => void }) {
           </div>
         ) : (
           <ul className="divide-y">
-            {current.data.map((t) => (
+            {(tab === 'published' ? current.data.toReversed() : current.data).map((t) => (
               <TargetRow key={t.id} t={t} />
             ))}
           </ul>

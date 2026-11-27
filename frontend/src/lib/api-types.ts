@@ -89,6 +89,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Slots */
+        patch: operations["patch_slots_api_v1_accounts__account_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/accounts/{account_id}/ig-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Ig Token */
+        put: operations["put_ig_token_api_v1_accounts__account_id__ig_token_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/links": {
         parameters: {
             query?: never;
@@ -174,6 +208,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/targets/reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Reschedule Targets */
+        patch: operations["reschedule_targets_api_v1_targets_reschedule_patch"];
+        trace?: never;
+    };
+    "/api/v1/targets/{target_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Target */
+        post: operations["retry_target_api_v1_targets__target_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/targets/{target_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Target */
+        post: operations["cancel_target_api_v1_targets__target_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slots/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Slots
+         * @description Where `count` videos would land per account in "Slot berikutnya" mode.
+         */
+        get: operations["preview_slots_api_v1_slots_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -190,6 +295,14 @@ export interface components {
             route: components["schemas"]["Route"];
             /** Active */
             active: boolean;
+            /** Connected */
+            connected: boolean;
+            /** Token Expires At */
+            token_expires_at: string | null;
+            /** Slots */
+            slots: string[];
+            /** Weekdays */
+            weekdays: number[];
         };
         /** Body_upload_api_v1_media_upload_post */
         Body_upload_api_v1_media_upload_post: {
@@ -200,6 +313,11 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IgTokenIn */
+        IgTokenIn: {
+            /** Token */
+            token: string;
         };
         /** LinksIn */
         LinksIn: {
@@ -276,6 +394,8 @@ export interface components {
             account_ids: string[];
             /** Items */
             items: components["schemas"]["PostItemIn"][];
+            /** @default exact */
+            schedule_mode: components["schemas"]["ScheduleMode"];
         };
         /** PostItemIn */
         PostItemIn: {
@@ -286,6 +406,13 @@ export interface components {
              * @default
              */
             caption: string;
+            /** Scheduled At */
+            scheduled_at?: string | null;
+        };
+        /** RescheduleIn */
+        RescheduleIn: {
+            /** Ids */
+            ids: string[];
             /**
              * Scheduled At
              * Format: date-time
@@ -297,10 +424,24 @@ export interface components {
          * @enum {string}
          */
         Route: "ig_direct" | "buffer";
+        /**
+         * ScheduleMode
+         * @enum {string}
+         */
+        ScheduleMode: "exact" | "slot";
+        /** SlotsIn */
+        SlotsIn: {
+            /** Slots */
+            slots: string[];
+            /** Weekdays */
+            weekdays: number[];
+        };
         /** TargetRead */
         TargetRead: {
             /** Id */
             id: string;
+            /** Post Id */
+            post_id: string;
             status: components["schemas"]["TargetStatus"];
             /**
              * Scheduled At
@@ -464,6 +605,76 @@ export interface operations {
             };
         };
     };
+    patch_slots_api_v1_accounts__account_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlotsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_ig_token_api_v1_accounts__account_id__ig_token_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IgTokenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_from_links_api_v1_media_links_post: {
         parameters: {
             query?: never;
@@ -599,6 +810,8 @@ export interface operations {
             query?: {
                 status?: components["schemas"]["TargetStatus"][] | null;
                 ids?: string[] | null;
+                start?: string | null;
+                end?: string | null;
             };
             header?: never;
             path?: never;
@@ -613,6 +826,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TargetRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reschedule_targets_api_v1_targets_reschedule_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_target_api_v1_targets__target_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_target_api_v1_targets__target_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_slots_api_v1_slots_preview_get: {
+        parameters: {
+            query: {
+                account_ids: string[];
+                count: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
                 };
             };
             /** @description Validation Error */
