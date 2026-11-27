@@ -19,6 +19,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Composer: caption per platform (Instagram, YouTube title + description, TikTok), hashtag counter, phone preview
 - Dark mode toggle (system / light / dark), shortcuts G then C/A/P/K/S and `/`, Antrian search
 - Jobs: delete video files 24 h after their posts settle; update yt-dlp daily at 04.00 WIB
+- Production (Phase 5): Docker image (non-root, SPA served by FastAPI), compose stack with Caddy HTTPS and `/m` media, nightly SQLite backups (7 kept), VPS guide `docs/DEPLOY.md`, GitHub Actions CI
 
 ### Changed
 - `FERNET_KEY` is now required; `IG_GRAPH_VERSION` defaults to v27.0

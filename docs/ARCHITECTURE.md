@@ -161,9 +161,11 @@ Implementations: `IgDirectPublisher`, `BufferPublisher`, `FakePublisher` (tests,
 
 ## 9. Deployment (Phase 5)
 
-- `deploy/Dockerfile`: multi-stage (node build → python:3.14-slim + ffmpeg).
-- `deploy/docker-compose.yml`: `app` (restart: unless-stopped, volumes `./data`, `./media`), `caddy` (ports 80/443, volume for certs).
-- `deploy/Caddyfile`: `<host> { handle_path /m/* { root * /srv/media/public … file_server } reverse_proxy app:8000 }`.
+Step-by-step guide: `docs/DEPLOY.md`.
+
+- `deploy/Dockerfile`: multi-stage (node 24 builds the SPA → python:3.14-slim + ffmpeg). Runs as uid 1000 with its own venv (writable, for the yt-dlp update). The entrypoint runs `alembic upgrade head`, then uvicorn with one worker. FastAPI serves the SPA at `/` (`STATIC_DIR`).
+- `deploy/docker-compose.yml` (run from the repo root): `app` (env from `.env`, volumes `data/` and `media/`, restart unless-stopped, healthcheck on `/api/v1/health`) and `caddy:2.10.2` (ports 80/443, certificate volume).
+- `deploy/Caddyfile`: `{$DOMAIN} { handle_path /m/* { root * /srv/media; file_server } reverse_proxy app:8000 }`; `/srv/media` is `media/public` read-only, no directory listing.
 - DNS: DuckDNS (or own domain) A record → VPS IP.
-- Backups: nightly `sqlite3 .backup` of `data/schedler.db` (keep 7).
-- CI (optional): GitHub Actions runs lint + tests on PRs to `main`.
+- Backups: `backup_db` job at 03:00 WIB, SQLite online backup to `data/backups/` (keep 7).
+- CI: `.github/workflows/ci.yml` runs backend (ruff, pytest) and frontend (lint, typecheck, test, build) on pushes to `main` and on PRs.
