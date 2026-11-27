@@ -12,7 +12,12 @@ from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.models import MediaAsset, MediaStatus, Notification, TargetStatus
 from app.services import media as media_service
-from app.services.notifications import notify, queue_daily_summary, send_pending
+from app.services.notifications import (
+    DRY_RUN_PREFIX,
+    notify,
+    queue_daily_summary,
+    send_pending,
+)
 from app.services.publishing import publish_ig_due
 from tests.factories import make_account, make_media, make_target
 
@@ -24,6 +29,7 @@ T = datetime(2026, 11, 24, 12, 30, tzinfo=UTC)  # 19.30 WIB
 def telegram_on(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "bot-token")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "42")
+    monkeypatch.setenv("DRY_RUN", "false")
     get_settings.cache_clear()
 
 
@@ -197,3 +203,17 @@ async def test_token_that_could_not_be_refreshed_is_reminded(
         "🔑 Login IG #1 kedaluwarsa 3 hari lagi. Sambungkan ulang di Akun &amp; slot: "
         "http://localhost:8000/#/akun"
     ]
+
+
+@pytest.mark.usefixtures("telegram_on")
+async def test_messages_sent_in_dry_run_say_so_once(
+    monkeypatch: pytest.MonkeyPatch, session: Session, http: respx.MockRouter
+) -> None:
+    monkeypatch.setenv("DRY_RUN", "true")
+    get_settings.cache_clear()
+    route = http.post(SEND).respond(json={"ok": True})
+    queue(session, *[f"pesan {i}" for i in range(7)])
+    await send_pending()
+    text = json.loads(route.calls[0].request.content)["text"]
+    assert text.startswith(DRY_RUN_PREFIX + "🗂 7 kabar terbaru")
+    assert text.count("Mode uji") == 1
