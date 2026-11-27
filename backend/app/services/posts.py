@@ -16,6 +16,7 @@ from app.models import (
     TargetStatus,
 )
 from app.services.routing import youtube_kind
+from app.services.slots import next_free_slots
 
 PAST_GRACE = timedelta(minutes=1)
 
@@ -23,12 +24,13 @@ PAST_GRACE = timedelta(minutes=1)
 class PostItemIn(BaseModel):
     media_id: str
     caption: str = ""
-    scheduled_at: AwareDatetime
+    scheduled_at: AwareDatetime | None = None  # required in exact mode
 
 
 class PostBatchIn(BaseModel):
     account_ids: list[str]
     items: list[PostItemIn]
+    schedule_mode: ScheduleMode = ScheduleMode.exact
 
 
 def _check(batch: PostBatchIn, accounts: dict[str, Account], media: dict[str, MediaAsset]) -> None:
@@ -49,6 +51,15 @@ def _check(batch: PostBatchIn, accounts: dict[str, Account], media: dict[str, Me
             raise DomainError(
                 "media_unusable",
                 "Ada video yang gagal diproses. Hapus dari daftar dulu.",
+                status_code=422,
+                detail={"media_id": item.media_id},
+            )
+        if batch.schedule_mode is ScheduleMode.slot:
+            continue
+        if item.scheduled_at is None:
+            raise DomainError(
+                "time_missing",
+                "Pilih waktu tayang untuk setiap video.",
                 status_code=422,
                 detail={"media_id": item.media_id},
             )
@@ -74,9 +85,15 @@ def create_batch(session: Session, batch: PostBatchIn) -> list[PostTarget]:
         m.id: m for m in session.exec(select(MediaAsset).where(col(MediaAsset.id).in_(media_ids)))
     }
     _check(batch, accounts, media)
+    # Slot mode: each account fills its own next free slots, in video order.
+    slot_times = (
+        {a: next_free_slots(session, accounts[a], len(batch.items)) for a in batch.account_ids}
+        if batch.schedule_mode is ScheduleMode.slot
+        else {}
+    )
 
     targets: list[PostTarget] = []
-    for item in batch.items:
+    for index, item in enumerate(batch.items):
         m = media[item.media_id]
         ready = m.status is MediaStatus.ready
         caption = item.caption.strip() or (m.source_caption or "")
@@ -94,8 +111,10 @@ def create_batch(session: Session, batch: PostBatchIn) -> list[PostTarget]:
                     account_id=account_id,
                     caption=caption,
                     yt_kind=yt_kind,
-                    scheduled_at=item.scheduled_at,
-                    schedule_mode=ScheduleMode.exact,
+                    scheduled_at=(
+                        slot_times[account_id][index] if slot_times else item.scheduled_at
+                    ),
+                    schedule_mode=batch.schedule_mode,
                     status=TargetStatus.queued_local if ready else TargetStatus.waiting_media,
                 )
             )
