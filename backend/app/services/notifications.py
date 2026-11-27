@@ -41,6 +41,9 @@ def accounts_link() -> str:
     return f"{get_settings().app_base_url.rstrip('/')}/#/akun"
 
 
+DRY_RUN_PREFIX = "🧪 <i>Mode uji, nggak beneran diposting</i>\n"
+
+
 def notify(session: Session, text: str) -> None:
     """Queue a message; the caller commits it together with its own change."""
     session.add(Notification(text=text))
@@ -82,9 +85,10 @@ async def send_pending() -> int:
         return 0
     messages = _combine(pending) if len(pending) > BATCH_OVER else [(n.text, [n]) for n in pending]
     delivered = 0
+    prefix = DRY_RUN_PREFIX if get_settings().dry_run else ""
     for text, rows in messages:
         try:
-            await telegram.send(text)
+            await telegram.send(prefix + text)
         except telegram.TelegramError as err:
             logger.warning("telegram send failed: %s %s", err.human, err.raw)
             break  # keep the rest for the next run

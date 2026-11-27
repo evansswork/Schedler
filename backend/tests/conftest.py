@@ -27,6 +27,8 @@ def _set_env(monkeypatch: pytest.MonkeyPatch, db_path: Path, media_dir: Path) ->
     monkeypatch.setenv("SECRET_KEY", "test-secret")
     monkeypatch.setenv("FERNET_KEY", TEST_FERNET_KEY)
     monkeypatch.setenv("IG_GRAPH_VERSION", "v27.0")
+    monkeypatch.setenv("APP_BASE_URL", "http://localhost:8000")
+    monkeypatch.setenv("APP_ENV", "local")
     # Never pick up real credentials from the owner's .env.
     for name in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "BUFFER_API_KEYS"):
         monkeypatch.setenv(name, "")
