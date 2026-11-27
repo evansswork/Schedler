@@ -11,14 +11,6 @@ import { toast } from 'sonner'
 
 import { PlatformDot } from '@/components/PlatformDot'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { api, type Target } from '@/lib/api'
 import { formatWIB, toWibInput } from '@/lib/format'
@@ -26,6 +18,7 @@ import { queryKeys } from '@/lib/queryKeys'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 
 import { toChips, wallToUtcIso, type Chip } from './logic'
+import { MoveConfirm } from './MoveConfirm'
 
 type View = 'week' | 'month'
 const HALF_HOUR = 30 * 60_000
@@ -201,46 +194,17 @@ export function CalendarPage() {
           datesSet={onDatesSet}
         />
       </div>
-      <Dialog
-        open={pending !== null}
-        onOpenChange={(open) => {
-          if (!open && pending) {
-            pending.revert()
-            setPending(null)
-          }
+      <MoveConfirm
+        pending={pending}
+        onCancel={() => {
+          pending?.revert()
+          setPending(null)
         }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pindahkan jadwal di Buffer juga?</DialogTitle>
-            <DialogDescription>
-              {pending &&
-                `Post ini sudah dikirim ke Buffer. Jadwal di Buffer ikut diubah ke ${formatWIB(pending.at)}.`}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => {
-                pending?.revert()
-                setPending(null)
-              }}
-            >
-              Batal
-            </Button>
-            <Button
-              size="lg"
-              onClick={() => {
-                if (pending) move.mutate(pending)
-                setPending(null)
-              }}
-            >
-              Pindahkan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onConfirm={() => {
+          if (pending) move.mutate(pending)
+          setPending(null)
+        }}
+      />
       {targets.isSuccess && chips.length === 0 && (
         <p className="text-muted-foreground text-[13px]">
           Belum ada post di periode ini. Tekan N untuk buat post.
