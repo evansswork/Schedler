@@ -22,6 +22,7 @@ MAX_TARGETS = 1000
 
 class TargetRead(SQLModel):
     id: str
+    post_id: str
     status: TargetStatus
     scheduled_at: datetime
     caption: str

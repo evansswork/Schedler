@@ -9,6 +9,8 @@ export type TargetStatus = Schemas['TargetStatus']
 export type Platform = Schemas['Platform']
 export type Orientation = Schemas['Orientation']
 export type PostBatch = Schemas['PostBatchIn']
+export type ScheduleMode = Schemas['ScheduleMode']
+export type SlotsIn = Schemas['SlotsIn']
 
 export class ApiError extends Error {
   readonly status: number

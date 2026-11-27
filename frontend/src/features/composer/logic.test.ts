@@ -30,18 +30,22 @@ const row = (mediaId: string, time = '2026-11-24T14:00') => ({
 })
 
 test.each<[ComposerValues, string | null]>([
-  [{ rows: [], accountIds: ['a'] }, 'Tambahkan minimal satu video.'],
-  [{ rows: [row('m1')], accountIds: [] }, 'Pilih minimal satu akun.'],
+  [{ rows: [], accountIds: ['a'], mode: 'exact' }, 'Tambahkan minimal satu video.'],
+  [{ rows: [row('m1')], accountIds: [], mode: 'exact' }, 'Pilih minimal satu akun.'],
   [
-    { rows: [row('m2')], accountIds: ['a'] },
+    { rows: [row('m2')], accountIds: ['a'], mode: 'exact' },
     'Ada video yang gagal diproses. Hapus dari daftar dulu.',
   ],
-  [{ rows: [row('m1', '')], accountIds: ['a'] }, 'Isi waktu tayang untuk setiap video.'],
   [
-    { rows: [row('m1', '2026-11-24T12:00')], accountIds: ['a'] },
+    { rows: [row('m1', '')], accountIds: ['a'], mode: 'exact' },
+    'Isi waktu tayang untuk setiap video.',
+  ],
+  [
+    { rows: [row('m1', '2026-11-24T12:00')], accountIds: ['a'], mode: 'exact' },
     'Ada waktu tayang yang sudah lewat. Pilih waktu yang akan datang.',
   ],
-  [{ rows: [row('m1')], accountIds: ['a'] }, null],
+  [{ rows: [row('m1')], accountIds: ['a'], mode: 'exact' }, null],
+  [{ rows: [row('m1', '')], accountIds: ['a'], mode: 'slot' }, null],
 ])('submitError %#', (values, expected) => {
   const media = new Map([
     ['m1', ready],

@@ -18,6 +18,7 @@ import { queryKeys } from '@/lib/queryKeys'
 
 import { AccountPicker } from './AccountPicker'
 import { accountWarnings, nextTimes, submitError, type ComposerValues } from './logic'
+import { SchedulePicker } from './SchedulePicker'
 import { SourceInput } from './SourceInput'
 import { VideoRow } from './VideoRow'
 
@@ -35,7 +36,12 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 function emptyValues(): ComposerValues {
-  return { rows: [], accountIds: readJson<string[]>(ACCOUNTS_KEY, []) }
+  return { rows: [], accountIds: readJson<string[]>(ACCOUNTS_KEY, []), mode: 'slot' }
+}
+
+function savedValues(): ComposerValues {
+  // Drafts saved before schedule modes existed have no `mode`.
+  return { ...emptyValues(), ...readJson<Partial<ComposerValues>>(DRAFT_KEY, {}) }
 }
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void; accounts: Account[] }
@@ -43,11 +49,12 @@ type Props = { open: boolean; onOpenChange: (open: boolean) => void; accounts: A
 export function ComposerPanel({ open, onOpenChange, accounts }: Props) {
   const queryClient = useQueryClient()
   const form = useForm<ComposerValues>({
-    defaultValues: readJson(DRAFT_KEY, emptyValues()),
+    defaultValues: savedValues(),
   })
   const { fields, append, remove } = useFieldArray({ control: form.control, name: 'rows' })
   const rows = useWatch({ control: form.control, name: 'rows' })
   const accountIds = useWatch({ control: form.control, name: 'accountIds' })
+  const mode = useWatch({ control: form.control, name: 'mode' })
   const [submitMessage, setSubmitMessage] = useState<string | null>(null)
 
   const mediaIds = rows.map((r) => r.mediaId)
@@ -64,9 +71,9 @@ export function ComposerPanel({ open, onOpenChange, accounts }: Props) {
 
   // Autosave so closing the panel or reloading never loses work.
   useEffect(() => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ rows, accountIds }))
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ rows, accountIds, mode }))
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accountIds))
-  }, [rows, accountIds])
+  }, [rows, accountIds, mode])
 
   // Prefill each caption from TikTok once it is known, unless the owner already typed one.
   useEffect(() => {
@@ -112,10 +119,11 @@ export function ComposerPanel({ open, onOpenChange, accounts }: Props) {
     if (problem || schedule.isPending) return
     schedule.mutate({
       account_ids: values.accountIds,
+      schedule_mode: values.mode,
       items: values.rows.map((r) => ({
         media_id: r.mediaId,
         caption: r.caption,
-        scheduled_at: fromWibInput(r.time),
+        scheduled_at: values.mode === 'exact' ? fromWibInput(r.time) : null,
       })),
     })
   }
@@ -160,7 +168,7 @@ export function ComposerPanel({ open, onOpenChange, accounts }: Props) {
                     index={i}
                     media={media.get(field.mediaId)}
                     caption={rows[i]?.caption ?? ''}
-                    time={rows[i]?.time ?? ''}
+                    time={mode === 'exact' ? (rows[i]?.time ?? '') : null}
                     onCaption={(v) => {
                       form.setValue(`rows.${i}.caption`, v)
                       form.setValue(`rows.${i}.captionTouched`, true)
@@ -178,6 +186,14 @@ export function ComposerPanel({ open, onOpenChange, accounts }: Props) {
             selected={accountIds}
             onChange={(ids) => form.setValue('accountIds', ids)}
             warnings={warnings}
+          />
+
+          <SchedulePicker
+            mode={mode}
+            onMode={(m) => form.setValue('mode', m)}
+            accounts={accounts}
+            accountIds={accountIds}
+            count={rows.length}
           />
         </div>
 
