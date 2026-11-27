@@ -10,9 +10,13 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - Posting slots per account (default 19.30 to 23.30 WIB) and "Slot berikutnya (otomatis)" scheduling that spreads a batch over each account's free slots
 - Kalender (week/month, drag to reschedule), Akun & slot, Perlu perhatian (failed posts, expiring logins), Tayang tab, Coba lagi and Batalkan
 - README: Instagram setup guide and DNS troubleshooting
+- YouTube and TikTok through Buffer (Phase 3): channel picker per account, YouTube category per account (YT #1 Science & Technology, YT #2 People & Blogs), at most 10 queued posts per channel refilled automatically, status read back after the due time, retries, and API budget guard from Buffer's rate-limit headers
+- TikTok posts Buffer cannot pull become "Upload manual" items (download file, copy caption, mark as posted)
+- Rescheduling or cancelling a post already in Buffer updates Buffer too
 
 ### Changed
 - `FERNET_KEY` is now required; `IG_GRAPH_VERSION` defaults to v27.0
+- `BUFFER_DAILY_REQUEST_BUDGET` removed: the budget now comes from Buffer's own rate-limit headers
 - Validation errors use the same `{error: {code, message}}` shape as other API errors
 
 ## 0.1.0 (pending acceptance)

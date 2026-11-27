@@ -93,7 +93,7 @@ A single user: the owner. Technical enough to run VS Code and a VPS with guidanc
 | Item | Limit | Source / note |
 |---|---|---|
 | Buffer free plan | 3 channels, 10 scheduled posts per channel at a time (refillable) | buffer.com/pricing |
-| Buffer API (free) | ~250 requests / 24 h, ~3,000 / 30 days | buffer.com pricing page |
+| Buffer API (free) | 150 / 15 min, 600 / 24 h, 1,000 per channel / 30 days (max 3,000) | developers.buffer.com (2026-11) |
 | Buffer media | Must be a public URL, reachable until the post publishes | Buffer API docs |
 | IG publishing | 50 to 100 API posts per account per 24 h (docs inconsistent). Read the real value from `content_publishing_limit`. | Meta docs |
 | IG account type | Professional (Creator recommended, for the music library) | Meta docs |

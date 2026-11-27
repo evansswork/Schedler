@@ -88,8 +88,8 @@ waiting_media / queued_local / failed ──user cancel──▶ cancelled  (pub
 |---|---|---|
 | `process_media` | 30 s | Picks `pending` media: download (yt-dlp), probe, normalize, store, set `public_url`, mark `ready`; moves its targets to `queued_local` |
 | `publish_ig_due` | 1 min | One step per IG target with `scheduled_at <= now + 5 min` (and `next_attempt_at` passed): `submit` creates the REELS container (`provider_ref`); `sync` polls `status_code` and, once `FINISHED` and due, checks quota → `media_publish` → permalink. A container already `PUBLISHED` (crash recovery) is just marked published |
-| `buffer_refill` | 2 min | Per Buffer channel: count queued posts in Buffer (cached, max 1 call per channel per run). If < 10, send the earliest `queued_local` targets with `dueAt = scheduled_at` |
-| `buffer_sync` | 5 min | Poll sent posts for status → `published` (+ URL) or error → retry/failed |
+| `buffer_refill` | 2 min | Per Buffer account: count our own `sent_to_buffer` targets (no API call). If < 10, send the earliest `queued_local` targets with `dueAt = scheduled_at` (now + 2 min if already past). Skipped while the API budget is low |
+| `buffer_sync` | 5 min | Only `sent_to_buffer` targets 2 min past due: `post(id)` → `sent` = `published` (+ URL); still waiting = look again in 10 min; `error` = delete the Buffer post, then retry/failed like IG |
 | `cleanup_media` | 1 h | Delete files whose targets are all final, after 24 h grace; mark `deleted` |
 | `refresh_ig_tokens` | daily | Refresh IG long-lived tokens expiring in < 15 days; warn on Telegram if refresh fails |
 | `update_ytdlp` | daily | `pip install -U yt-dlp` inside the container (or log if not permitted) |
@@ -97,7 +97,7 @@ waiting_media / queued_local / failed ──user cancel──▶ cancelled  (pub
 
 Startup: run `publish_ig_due` immediately. IG posts overdue by > 6 h are **not** auto-published. Mark them `failed` with the reason "Terlewat karena server mati", and notify.
 
-**Buffer API budget (free):** ~250 requests per 24 h. Cache channel queue counts and batch status queries. Log daily usage in `EventLog` and stop refills at 80% of budget.
+**Buffer API budget (free):** 600 requests / 24 h and 1,000 per channel / 30 days (≈ 100 a day for 3 channels). Queue counts are local; status is read once per post after its due time. The `RateLimit` headers of every response are stored per key, and refills stop when < 20% of the day or < 10% of the month is left.
 
 ## 6. Publisher adapters
 
@@ -123,8 +123,9 @@ Implementations: `IgDirectPublisher`, `BufferPublisher`, `FakePublisher` (tests,
 ### 6.2 Buffer (GraphQL API, personal API key)
 
 - Docs: https://developers.buffer.com. Personal API key (Settings → API). The free plan allows 1 key.
-- Create a scheduled post with the `createPost` mutation, using `customScheduled` mode + `dueAt`, and the video in `assets.videos[].url` (public URL).
-- Per-platform metadata (YouTube title / Shorts vs. video; TikTok title) goes in the post metadata object. **Verify exact field names against the live schema (API Explorer) in Phase 3**, then record them in `.claude/skills/platform-apis/SKILL.md`.
+- Create a scheduled post with the `createPost` mutation (`schedulingType: automatic`, `mode: customScheduled`, `dueAt`), the video as `assets: [{video: {url}}]` (public URL).
+- YouTube needs `metadata.youtube.title` and `categoryId` (per account, `Account.yt_category_id`); `type` is `short` or `regularVideo` from `PostTarget.yt_kind`. Exact fields and the items still to verify live: `.claude/skills/platform-apis/SKILL.md`.
+- Rescheduling or cancelling a `sent_to_buffer` target calls `editPost` / `deletePost` first; if Buffer refuses, the local post is left unchanged.
 - The media URL must stay reachable until the post publishes, so do not delete media while any Buffer target is pending.
 - TikTok risk: URL-pulled TikTok video may require a verified domain. If `createPost` for TikTok fails for that reason, set the target to `manual_required` and notify.
 

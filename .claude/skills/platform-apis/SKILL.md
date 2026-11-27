@@ -40,15 +40,20 @@ description: Rules, endpoints and gotchas for Schedler's external integrations (
 
 ## Buffer (YouTube + TikTok)
 
-- API: GraphQL at the endpoint listed on https://developers.buffer.com (personal API key, `Authorization: Bearer <key>`). The free plan allows 1 key and ~3,000 requests per 30 days (~250 per 24 h).
-- Free plan: 3 channels, **10 scheduled posts per channel at a time**. Never send an 11th; hold it locally.
-- Scheduled post: `createPost` mutation with `mode: customScheduled`, `dueAt: <ISO-8601 UTC>`, `channelId`, `text`, `assets: { videos: [{ url }] }`.
-- Media must be a public URL that stays reachable until the post publishes. Do not clean it up early.
-- Per-platform metadata (YouTube title, Short vs. video; TikTok title/privacy): **TO VERIFY in Phase 3** using the API Explorer. Write the confirmed field names here:
-  - YouTube: `TBD`
-  - TikTok: `TBD`
-- TikTok risk: the Buffer roadmap mentions URL-pulled TikTok video may require a verified domain. If `createPost` fails for that reason, set the target to `manual_required`.
-- Budget guard: count requests per day in `EventLog`; pause refills at 80% of the daily budget.
+Source: https://developers.buffer.com (read 2026-11-27, no live key yet). Items marked **verify live** must be checked on the first real run; fix code and this file in the same commit if they differ.
+
+- Endpoint `POST https://api.buffer.com`, `Authorization: Bearer <key>`. Key: publish.buffer.com/settings/api. Free plan: 1 key, API included.
+- Limits (free): 150 / 15 min, 600 / 24 h, 1,000 per unlocked channel per 30 days (max 3,000), shared by all keys of the account. Every response carries `RateLimit: "<name>"; r=<left>; t=<reset s>` and `RateLimit-Policy: "<name>"; q=<quota>; w=<window s>` (match windows by `w`: 900, 86400, 2592000). 429 → `Retry-After` seconds, body `extensions.code = RATE_LIMIT_EXCEEDED`; a 429 costs nothing.
+- Budget guard (`buffer_client.budget_ok`): stored headers per key; no new posts when < 20% of the day or < 10% of the month is left. Queue size per channel is counted locally (our `sent_to_buffer` targets), not queried.
+- Free plan: **10 scheduled posts per channel at a time** (Buffer roadmap; user-reported via support, **verify live**). Never send an 11th; hold it locally.
+- Channels: `account { organizations { id name } }`, then `channels(input: {organizationId}) { id name displayName service isDisconnected }`. `service` values lowercase (`youtube`, `tiktok`): **verify live**.
+- Create: `createPost(input: CreatePostInput!)` with `channelId`, `text`, `schedulingType: automatic`, `mode: customScheduled`, `dueAt` (ISO UTC, future), `assets: [{video: {url}}]` (`thumbnailUrl` is rejected), `metadata`. Result union: `... on PostActionSuccess { post { id } }`, `... on MutationError { message }`.
+  - YouTube: `metadata.youtube { title (required), type: short | regularVideo, categoryId (required), privacy, madeForKids, notifySubscribers }`. Categories: 1, 2, 10, 15, 17, 19, 20, 22–29 (see `services/accounts.YT_CATEGORIES`).
+  - TikTok: `metadata.tiktok { title }` is for photo posts only; we send no metadata. No privacy field.
+- Read: `post(input: {id}) { id status externalLink }`. Status values `buffer` (scheduled), `sending`, `sent`, `error`, `draft`: **verify live** (docs examples also use `scheduled`).
+- Edit: `editPost(input: {id, dueAt})`; delete: `deletePost(input: {id})` (`PostNotDeletableError` when already sent).
+- Media: public, direct, stable HTTPS URL reachable until Buffer publishes (R2 public URL works). Do not clean it up early.
+- TikTok risk: URL-pulled TikTok video may require a verified domain (user report on Buffer's roadmap, **verify live**). If `createPost` for TikTok fails that way, the target becomes `manual_required` (owner downloads the file + copies the caption).
 
 ## yt-dlp (TikTok download)
 
