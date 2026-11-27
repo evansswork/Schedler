@@ -44,7 +44,7 @@ class SlotsIn(BaseModel):
         return sorted(set(v))
 
 
-def _get(session: Session, account_id: str) -> Account:
+def get_account(session: Session, account_id: str) -> Account:
     account = session.get(Account, account_id)
     if account is None or not account.active:
         raise DomainError("account_not_found", "Akun nggak ditemukan.", status_code=404)
@@ -52,7 +52,7 @@ def _get(session: Session, account_id: str) -> Account:
 
 
 def update_slots(session: Session, account_id: str, body: SlotsIn) -> Account:
-    account = _get(session, account_id)
+    account = get_account(session, account_id)
     account.slots = body.slots
     account.weekdays = body.weekdays
     session.add(account)
@@ -62,7 +62,7 @@ def update_slots(session: Session, account_id: str, body: SlotsIn) -> Account:
 
 
 async def connect_ig(session: Session, account_id: str, token: str) -> Account:
-    account = _get(session, account_id)
+    account = get_account(session, account_id)
     if account.platform is not Platform.ig:
         raise DomainError(
             "not_instagram", f"{account.label} bukan akun Instagram.", status_code=422

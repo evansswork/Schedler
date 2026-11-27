@@ -9,7 +9,9 @@ from app.api.accounts import AccountRead
 from app.api.media import MediaRead
 from app.core.db import get_session
 from app.models import Account, MediaAsset, Post, PostTarget, TargetStatus, YtKind
+from app.services.accounts import get_account
 from app.services.posts import PostBatchIn, RescheduleIn, cancel, create_batch, reschedule, retry
+from app.services.slots import next_free_slots
 
 router = APIRouter()
 
@@ -94,3 +96,13 @@ def retry_target(target_id: str, session: Annotated[Session, Depends(get_session
 def cancel_target(target_id: str, session: Annotated[Session, Depends(get_session)]) -> TargetRead:
     cancel(session, target_id)
     return list_targets(session, ids=[target_id])[0]
+
+
+@router.get("/slots/preview")
+def preview_slots(
+    session: Annotated[Session, Depends(get_session)],
+    account_ids: Annotated[list[str], Query()],
+    count: Annotated[int, Query(ge=1, le=100)],
+) -> dict[str, list[datetime]]:
+    """Where `count` videos would land per account in "Slot berikutnya" mode."""
+    return {a: next_free_slots(session, get_account(session, a), count) for a in account_ids}
