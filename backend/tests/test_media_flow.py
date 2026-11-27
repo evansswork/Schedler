@@ -24,6 +24,8 @@ from app.models import (
 )
 from app.pipeline.download import Downloaded
 from app.publishers import get_publisher
+from app.publishers.buffer_client import BufferError
+from app.publishers.errors import ErrorKind
 from app.publishers.fake import FakePublisher
 from app.services import media as media_service
 from tests.clips import make_clip
@@ -214,12 +216,13 @@ async def test_fake_publisher_contract(session: Session) -> None:
     assert buffered.provider_ref == f"fake-{target.id}"
 
 
-def test_real_publishing_refused_outside_dry_run(
+def test_unlinked_buffer_account_asks_to_connect_outside_dry_run(
     monkeypatch: pytest.MonkeyPatch, session: Session
 ) -> None:
     monkeypatch.setenv("DRY_RUN", "false")
     get_settings.cache_clear()
     yt = make_account(session, label="YT #1", platform=Platform.youtube, route=Route.buffer)
-    with pytest.raises(DomainError) as exc:
+    with pytest.raises(BufferError) as exc:
         get_publisher(yt, get_settings())
-    assert exc.value.code == "route_not_available"
+    assert exc.value.kind is ErrorKind.reconnect
+    assert exc.value.human == "YT #1 belum tersambung ke Buffer. Pilih channel di Akun & slot."

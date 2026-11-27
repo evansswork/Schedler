@@ -12,7 +12,8 @@ from app.core.db import get_engine, utcnow
 from app.core.errors import DomainError
 from app.models import Account, EventLevel, Platform, Route
 from app.publishers.buffer_client import BufferClient, BufferError, Channel
-from app.publishers.ig_client import IgClient, IgError, IgErrorKind
+from app.publishers.errors import ErrorKind
+from app.publishers.ig_client import IgClient, IgError
 from app.services.events import log_event
 
 logger = logging.getLogger(__name__)
@@ -111,7 +112,7 @@ async def connect_ig(session: Session, account_id: str, token: str) -> Account:
         session.commit()
         message = (
             "Token ditolak Instagram. Pastikan token disalin utuh dari Meta App Dashboard."
-            if err.kind is IgErrorKind.token
+            if err.kind is ErrorKind.reconnect
             else err.human
         )
         raise DomainError("ig_token_rejected", message, status_code=422) from err
@@ -171,7 +172,7 @@ async def refresh_expiring_tokens() -> int:
         except IgError as err:
             with Session(get_engine()) as s:
                 account = s.get_one(Account, account_id)
-                if err.kind is IgErrorKind.token:
+                if err.kind is ErrorKind.reconnect:
                     mark_token_invalid(s, account)
                 log_event(s, EventLevel.warn, "account", account_id, err.code, err.raw)
                 s.commit()

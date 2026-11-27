@@ -10,7 +10,15 @@ from app.api.media import MediaRead
 from app.core.db import get_session
 from app.models import Account, MediaAsset, Post, PostTarget, TargetStatus, YtKind
 from app.services.accounts import get_account
-from app.services.posts import PostBatchIn, RescheduleIn, cancel, create_batch, reschedule, retry
+from app.services.posts import (
+    PostBatchIn,
+    RescheduleIn,
+    cancel,
+    create_batch,
+    mark_published,
+    reschedule,
+    retry,
+)
 from app.services.slots import next_free_slots
 
 router = APIRouter()
@@ -80,10 +88,10 @@ def list_targets(
 
 
 @router.patch("/targets/reschedule")
-def reschedule_targets(
+async def reschedule_targets(
     body: RescheduleIn, session: Annotated[Session, Depends(get_session)]
 ) -> list[TargetRead]:
-    targets = reschedule(session, body)
+    targets = await reschedule(session, body)
     return list_targets(session, ids=[t.id for t in targets])
 
 
@@ -94,8 +102,18 @@ def retry_target(target_id: str, session: Annotated[Session, Depends(get_session
 
 
 @router.post("/targets/{target_id}/cancel")
-def cancel_target(target_id: str, session: Annotated[Session, Depends(get_session)]) -> TargetRead:
-    cancel(session, target_id)
+async def cancel_target(
+    target_id: str, session: Annotated[Session, Depends(get_session)]
+) -> TargetRead:
+    await cancel(session, target_id)
+    return list_targets(session, ids=[target_id])[0]
+
+
+@router.post("/targets/{target_id}/mark-published")
+def mark_target_published(
+    target_id: str, session: Annotated[Session, Depends(get_session)]
+) -> TargetRead:
+    mark_published(session, target_id)
     return list_targets(session, ids=[target_id])[0]
 
 

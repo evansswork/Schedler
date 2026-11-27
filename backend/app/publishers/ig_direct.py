@@ -6,13 +6,14 @@ container that is already PUBLISHED (crash after publishing) is reported as publ
 """
 
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from app.core.crypto import decrypt
 from app.core.db import utcnow
 from app.models import Account, MediaAsset, PostTarget, Route, TargetStatus
 from app.publishers.base import SubmitResult, SyncResult
-from app.publishers.ig_client import SUBCODES, IgClient, IgError, IgErrorKind
+from app.publishers.errors import ErrorKind
+from app.publishers.ig_client import SUBCODES, IgClient, IgError
 
 # Meta suggests polling ≤ 5 min; long videos can take longer, so allow 15.
 CONTAINER_TIMEOUT = timedelta(minutes=15)
@@ -25,7 +26,7 @@ class IgDirectPublisher:
     def __init__(self, account: Account) -> None:
         if not (account.token_enc and account.ig_user_id):
             raise IgError(
-                IgErrorKind.token,
+                ErrorKind.reconnect,
                 f"{account.label} belum tersambung. Tempel token di Akun & slot.",
                 code="ig_not_connected",
             )
@@ -55,7 +56,7 @@ class IgDirectPublisher:
                 # updated_at is when the container was created: nothing else writes a
                 # target while it is publishing (reschedule and cancel refuse it).
                 if utcnow() - target.updated_at > CONTAINER_TIMEOUT:
-                    raise IgError(IgErrorKind.retryable, REJECTED, code="ig_container_timeout")
+                    raise IgError(ErrorKind.retryable, REJECTED, code="ig_container_timeout")
                 return SyncResult(status=TargetStatus.publishing)
             if target.scheduled_at > utcnow():
                 return SyncResult(status=TargetStatus.publishing)
@@ -73,13 +74,16 @@ class IgDirectPublisher:
     async def cancel(self, target: PostTarget) -> None:
         return None  # unpublished containers expire on their own after 24 h
 
+    async def reschedule(self, target: PostTarget, at: datetime) -> None:
+        return None
+
 
 def _container_error(code: str, detail: str) -> IgError:
     raw = {"status_code": code, "status": detail}
     if code == "EXPIRED":
-        return IgError(IgErrorKind.retryable, REJECTED, code="ig_container_expired", raw=raw)
+        return IgError(ErrorKind.retryable, REJECTED, code="ig_container_expired", raw=raw)
     subcode = next((int(n) for n in re.findall(r"\d{7}", detail) if int(n) in SUBCODES), None)
     if subcode is None:
-        return IgError(IgErrorKind.retryable, REJECTED, code="ig_container_error", raw=raw)
+        return IgError(ErrorKind.retryable, REJECTED, code="ig_container_error", raw=raw)
     kind, human = SUBCODES[subcode]
     return IgError(kind, human, code=f"ig_container_{subcode}", raw=raw)

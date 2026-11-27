@@ -1,4 +1,8 @@
-"""IG direct publishing: one small step per due target per job run (see ARCHITECTURE §4-5)."""
+"""Publishing steps shared by every route: one small step per target per job run.
+
+IG direct is driven by publish_ig_due here; Buffer by services/buffer_sync.py.
+See ARCHITECTURE §4-5.
+"""
 
 import logging
 from datetime import timedelta
@@ -19,7 +23,8 @@ from app.models import (
     TargetStatus,
 )
 from app.publishers import get_publisher
-from app.publishers.ig_client import IgError, IgErrorKind
+from app.publishers.errors import ErrorKind, PublishError
+from app.publishers.ig_client import IgError
 from app.services.accounts import mark_token_invalid
 from app.services.events import log_event
 
@@ -28,7 +33,6 @@ logger = logging.getLogger(__name__)
 LEAD = timedelta(minutes=5)  # create the container early so it is ready at the slot
 BACKOFF = (timedelta(minutes=2), timedelta(minutes=5))
 MAX_ATTEMPTS = len(BACKOFF) + 1
-QUOTA_WAIT = timedelta(hours=1)
 MISSED_AFTER = timedelta(hours=6)
 MISSED_HUMAN = "Terlewat karena server mati. Jadwalkan ulang?"
 UNEXPECTED_HUMAN = "Gagal posting karena error tak terduga. Detailnya ada di log server."
@@ -86,13 +90,16 @@ async def publish_ig_due() -> int:
     """Advance every due IG target by one step. Returns how many were published."""
     published = 0
     for target_id in _due_ids():
-        published += await _step(target_id)
+        published += await advance(target_id)
     if published:
         logger.info("publish_ig_due: %d published", published)
     return published
 
 
-async def _step(target_id: str) -> bool:
+async def advance(target_id: str, recheck: timedelta | None = None) -> bool:
+    """Submit a queued target or sync a sent one. Returns True when it went live.
+
+    `recheck`: when nothing changed, wait this long before looking again."""
     with Session(get_engine()) as s:
         row = s.exec(
             select(PostTarget, Account, MediaAsset)
@@ -111,19 +118,22 @@ async def _step(target_id: str) -> bool:
         else:
             res = await publisher.sync(target)
             status, ref, url = res.status, target.provider_ref, res.published_url
-    except IgError as err:
+    except PublishError as err:
         _on_error(target_id, was, err)
         return False
     except Exception as exc:  # keep the job alive; the target gets a clear state
         logger.exception("publish step failed for %s", target_id)
-        err = IgError(
-            IgErrorKind.retryable, UNEXPECTED_HUMAN, code="unexpected", raw={"error": repr(exc)}
+        err = PublishError(
+            ErrorKind.retryable, UNEXPECTED_HUMAN, code="unexpected", raw={"error": repr(exc)}
         )
         _on_error(target_id, was, err)
         return False
     if status is was and ref == target.provider_ref:
-        return False  # still waiting (container processing or not due yet)
-    values: dict[str, Any] = {"status": status, "provider_ref": ref}
+        # Still waiting (IG container processing, not due yet, Buffer not sent yet).
+        if recheck is not None:
+            _update_if(target_id, was, {"next_attempt_at": utcnow() + recheck})
+        return False
+    values: dict[str, Any] = {"status": status, "provider_ref": ref, "next_attempt_at": None}
     if status is TargetStatus.published:
         values |= {"published_url": url, "last_error": None, "last_error_human": None}
     applied = _update_if(target_id, was, values)
@@ -146,7 +156,7 @@ def _update_if(target_id: str, expected: TargetStatus, values: dict[str, Any]) -
         return result.rowcount == 1
 
 
-def _on_error(target_id: str, was: TargetStatus, err: IgError) -> None:
+def _on_error(target_id: str, was: TargetStatus, err: PublishError) -> None:
     now = utcnow()
     with Session(get_engine()) as s:
         target = s.get_one(PostTarget, target_id)
@@ -154,17 +164,21 @@ def _on_error(target_id: str, was: TargetStatus, err: IgError) -> None:
             return  # cancelled or changed while we were talking to Instagram
         log_event(s, EventLevel.error, "target", target_id, err.code, err.raw)
         target.last_error = err.code
-        if err.kind is IgErrorKind.quota:
-            target.next_attempt_at = now + QUOTA_WAIT  # not counted as an attempt
+        if err.kind is ErrorKind.wait:
+            target.next_attempt_at = now + err.wait  # not counted as an attempt
             target.last_error_human = err.human
-        elif err.kind is IgErrorKind.retryable and target.attempts + 1 < MAX_ATTEMPTS:
+        elif err.kind is ErrorKind.manual:
+            target.status = TargetStatus.manual_required
+            target.next_attempt_at = None
+            target.last_error_human = err.human
+        elif err.kind is ErrorKind.retryable and target.attempts + 1 < MAX_ATTEMPTS:
             target.attempts += 1
             target.status = TargetStatus.queued_local
             target.provider_ref = None  # a fresh container next time
             target.next_attempt_at = now + BACKOFF[target.attempts - 1]
             target.last_error_human = f"{err.human} Dicoba lagi otomatis."
         else:
-            if err.kind is IgErrorKind.retryable:
+            if err.kind is ErrorKind.retryable:
                 target.attempts += 1
                 human = f"{err.human} Sudah dicoba {target.attempts}x."
             else:
@@ -172,7 +186,12 @@ def _on_error(target_id: str, was: TargetStatus, err: IgError) -> None:
             target.status = TargetStatus.failed
             target.next_attempt_at = None
             target.last_error_human = human
-            if err.kind is IgErrorKind.token and err.code != "ig_not_connected":
+            # A dead IG token flags the account; a missing Buffer link or key does not.
+            if (
+                err.kind is ErrorKind.reconnect
+                and isinstance(err, IgError)
+                and err.code != "ig_not_connected"
+            ):
                 mark_token_invalid(s, s.get_one(Account, target.account_id))
         s.add(target)
         s.commit()

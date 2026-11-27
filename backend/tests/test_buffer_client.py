@@ -11,11 +11,11 @@ from app.publishers.buffer_client import (
     ENDPOINT,
     BufferClient,
     BufferError,
-    BufferErrorKind,
     budget_ok,
     parse_rate_limit,
     rate_limit,
 )
+from app.publishers.errors import ErrorKind
 
 FIXTURES = Path(__file__).parent / "fixtures" / "buffer"
 HEADERS = {
@@ -63,13 +63,13 @@ async def test_create_post_returns_the_buffer_id(http: respx.MockRouter) -> None
 @pytest.mark.parametrize(
     ("name", "service", "kind"),
     [
-        ("create_limit.json", "youtube", BufferErrorKind.full),
-        ("create_tiktok_domain.json", "tiktok", BufferErrorKind.manual),
-        ("create_tiktok_domain.json", "youtube", BufferErrorKind.retryable),
+        ("create_limit.json", "youtube", ErrorKind.wait),
+        ("create_tiktok_domain.json", "tiktok", ErrorKind.manual),
+        ("create_tiktok_domain.json", "youtube", ErrorKind.retryable),
     ],
 )
 async def test_create_post_errors_are_classified(
-    http: respx.MockRouter, name: str, service: str, kind: BufferErrorKind
+    http: respx.MockRouter, name: str, service: str, kind: ErrorKind
 ) -> None:
     http.post(ENDPOINT).respond(json=fixture(name))
     async with BufferClient("k", "0") as buffer:
@@ -91,7 +91,7 @@ async def test_bad_key_is_not_retried(http: respx.MockRouter) -> None:
     async with BufferClient("k", "0") as buffer:
         with pytest.raises(BufferError) as exc:
             await buffer.channels()
-    assert exc.value.kind is BufferErrorKind.auth
+    assert exc.value.kind is ErrorKind.reconnect
     assert route.call_count == 1
 
 
@@ -112,7 +112,7 @@ async def test_5xx_gives_up_after_3_tries(http: respx.MockRouter) -> None:
     async with BufferClient("k", "0") as buffer:
         with pytest.raises(BufferError) as exc:
             await buffer.get_post("post-1")
-    assert exc.value.kind is BufferErrorKind.retryable
+    assert exc.value.kind is ErrorKind.retryable
     assert route.call_count == 3
 
 
@@ -121,7 +121,7 @@ async def test_graphql_errors_are_fatal_with_details(http: respx.MockRouter) -> 
     async with BufferClient("k", "0") as buffer:
         with pytest.raises(BufferError) as exc:
             await buffer.get_post("post-1")
-    assert exc.value.kind is BufferErrorKind.fatal
+    assert exc.value.kind is ErrorKind.fatal
     assert "externalLink" in exc.value.raw["errors"][0]["message"]
 
 

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.core.db import utcnow
 from app.models import MediaAsset, PostTarget, Route, TargetStatus
 from app.publishers.base import SubmitResult, SyncResult
@@ -29,4 +31,7 @@ class FakePublisher:
         return SyncResult(status=TargetStatus.published)
 
     async def cancel(self, target: PostTarget) -> None:
+        return None
+
+    async def reschedule(self, target: PostTarget, at: datetime) -> None:
         return None

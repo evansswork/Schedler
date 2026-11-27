@@ -12,7 +12,8 @@ from sqlmodel import Session, select
 
 from app.core.crypto import decrypt
 from app.models import Account, EventLog, Platform, Route
-from app.publishers.ig_client import IgClient, IgError, IgErrorKind, map_error
+from app.publishers.errors import ErrorKind
+from app.publishers.ig_client import IgClient, IgError, map_error
 from app.services.accounts import refresh_expiring_tokens
 from tests.factories import make_account
 
@@ -172,7 +173,7 @@ async def test_client_does_not_retry_4xx(http: respx.MockRouter) -> None:
     async with IgClient("t") as ig:
         with pytest.raises(IgError) as exc:
             await ig.me()
-    assert exc.value.kind is IgErrorKind.token
+    assert exc.value.kind is ErrorKind.reconnect
     assert route.call_count == 1
 
 
@@ -181,19 +182,19 @@ async def test_client_gives_up_after_3_network_errors(http: respx.MockRouter) ->
     async with IgClient("t") as ig:
         with pytest.raises(IgError) as exc:
             await ig.me()
-    assert exc.value.kind is IgErrorKind.retryable
+    assert exc.value.kind is ErrorKind.retryable
     assert route.call_count == 3
 
 
 @pytest.mark.parametrize(
     ("name", "status", "kind"),
     [
-        ("error_quota.json", 400, IgErrorKind.quota),
-        ("error_media_fetch.json", 400, IgErrorKind.retryable),
-        ("error_token_expired.json", 400, IgErrorKind.token),
+        ("error_quota.json", 400, ErrorKind.wait),
+        ("error_media_fetch.json", 400, ErrorKind.retryable),
+        ("error_token_expired.json", 400, ErrorKind.reconnect),
     ],
 )
-def test_error_mapping(name: str, status: int, kind: IgErrorKind) -> None:
+def test_error_mapping(name: str, status: int, kind: ErrorKind) -> None:
     err = map_error(status, fixture(name))
     assert err.kind is kind
     assert err.human and "error" not in err.human.lower()
