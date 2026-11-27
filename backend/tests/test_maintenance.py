@@ -137,3 +137,20 @@ async def test_update_failure_is_reported(
     monkeypatch.setattr(asyncio, "create_subprocess_exec", failing)
     with time_machine.travel(utcnow(), tick=False):
         assert await update_ytdlp() == "Update pengunduh gagal. Detailnya ada di log server."
+
+
+def test_backup_keeps_the_last_7_days(session: Session) -> None:
+    import sqlite3
+
+    from app.services.maintenance import backup_db
+
+    make_account(session)
+    start = utcnow()
+    for day in range(9):
+        with time_machine.travel(start + timedelta(days=day), tick=False):
+            path = backup_db()
+    assert path is not None
+    backups = sorted(path.parent.glob("schedler-*.db"))
+    assert len(backups) == 7 and backups[-1] == path
+    with sqlite3.connect(path) as db:
+        assert db.execute("select label from account").fetchall() == [("IG #1",)]
