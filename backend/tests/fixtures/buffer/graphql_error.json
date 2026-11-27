@@ -1,0 +1,1 @@
+{"errors": [{"message": "Cannot query field \"externalLink\" on type \"Post\".", "extensions": {"code": "GRAPHQL_VALIDATION_FAILED"}}]}

@@ -12,7 +12,7 @@ from alembic import command
 from app.core.config import get_settings
 from app.core.db import get_engine
 from app.core.security import _login_failures, hash_password
-from app.publishers import ig_client
+from app.publishers import buffer_client, ig_client
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 TEST_PASSWORD = "correct horse battery"
@@ -33,6 +33,10 @@ def _set_env(monkeypatch: pytest.MonkeyPatch, db_path: Path, media_dir: Path) ->
     monkeypatch.setenv("PUBLIC_MEDIA_BASE_URL", "http://testserver/m")
     get_settings.cache_clear()
     get_engine.cache_clear()
+
+
+async def _no_sleep(_s: float) -> None:
+    return None
 
 
 @pytest.fixture(scope="session")
@@ -61,6 +65,7 @@ def env(
     engine = get_engine()
     _login_failures.clear()
     monkeypatch.setattr(ig_client, "RETRY_BASE_S", 0)
+    monkeypatch.setattr(buffer_client, "_sleep", _no_sleep)
     with respx.mock(assert_all_mocked=True, assert_all_called=False) as router:
         yield router
     engine.dispose()
