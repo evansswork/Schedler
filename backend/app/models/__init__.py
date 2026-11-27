@@ -100,6 +100,7 @@ class Account(SQLModel, table=True):
     ig_user_id: str | None = None
     buffer_channel_id: str | None = None
     buffer_key_ref: str | None = None
+    yt_category_id: str | None = None  # YouTube category for Buffer posts
     token_enc: str | None = None
     token_expires_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
     timezone: str = "Asia/Jakarta"

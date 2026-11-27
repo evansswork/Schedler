@@ -1,4 +1,4 @@
-"""Account connection (IG token) and slot settings."""
+"""Account connections (IG token, Buffer channel) and per-account settings."""
 
 import logging
 from datetime import timedelta
@@ -6,10 +6,12 @@ from datetime import timedelta
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, col, select
 
+from app.core.config import get_settings
 from app.core.crypto import decrypt, encrypt
 from app.core.db import get_engine, utcnow
 from app.core.errors import DomainError
-from app.models import Account, EventLevel, Platform
+from app.models import Account, EventLevel, Platform, Route
+from app.publishers.buffer_client import BufferClient, BufferError, Channel
 from app.publishers.ig_client import IgClient, IgError, IgErrorKind
 from app.services.events import log_event
 
@@ -21,13 +23,36 @@ PASTED_TOKEN_LIFETIME = timedelta(days=60)
 REFRESH_WHEN_LEFT = timedelta(days=15)
 
 
-class SlotsIn(BaseModel):
-    slots: list[str] = Field(max_length=24)
-    weekdays: list[int] = Field(min_length=1, max_length=7)
+# YouTube's standard categories (Buffer requires one per YouTube post).
+YT_CATEGORIES = {
+    "1": "Film & Animation",
+    "2": "Autos & Vehicles",
+    "10": "Music",
+    "15": "Pets & Animals",
+    "17": "Sports",
+    "19": "Travel & Events",
+    "20": "Gaming",
+    "22": "People & Blogs",
+    "23": "Comedy",
+    "24": "Entertainment",
+    "25": "News & Politics",
+    "26": "Howto & Style",
+    "27": "Education",
+    "28": "Science & Technology",
+    "29": "Nonprofits & Activism",
+}
+
+
+class AccountUpdate(BaseModel):
+    slots: list[str] | None = Field(default=None, max_length=24)
+    weekdays: list[int] | None = Field(default=None, min_length=1, max_length=7)
+    yt_category_id: str | None = None
 
     @field_validator("slots")
     @classmethod
-    def _slots(cls, v: list[str]) -> list[str]:
+    def _slots(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return None
         for s in v:
             hh, _, mm = s.partition(":")
             if not (len(hh) == len(mm) == 2 and hh.isdigit() and mm.isdigit()) or not (
@@ -38,10 +63,19 @@ class SlotsIn(BaseModel):
 
     @field_validator("weekdays")
     @classmethod
-    def _weekdays(cls, v: list[int]) -> list[int]:
+    def _weekdays(cls, v: list[int] | None) -> list[int] | None:
+        if v is None:
+            return None
         if any(d < 1 or d > 7 for d in v):
             raise ValueError("Hari harus antara 1 (Senin) dan 7 (Minggu).")
         return sorted(set(v))
+
+    @field_validator("yt_category_id")
+    @classmethod
+    def _category(cls, v: str | None) -> str | None:
+        if v is not None and v not in YT_CATEGORIES:
+            raise ValueError("Kategori YouTube nggak dikenal.")
+        return v
 
 
 def get_account(session: Session, account_id: str) -> Account:
@@ -51,10 +85,9 @@ def get_account(session: Session, account_id: str) -> Account:
     return account
 
 
-def update_slots(session: Session, account_id: str, body: SlotsIn) -> Account:
+def update_account(session: Session, account_id: str, body: AccountUpdate) -> Account:
     account = get_account(session, account_id)
-    account.slots = body.slots
-    account.weekdays = body.weekdays
+    account.sqlmodel_update(body.model_dump(exclude_unset=True))
     session.add(account)
     session.commit()
     session.refresh(account)
@@ -154,3 +187,72 @@ async def refresh_expiring_tokens() -> int:
     if refreshed:
         logger.info("refresh_ig_tokens: %d refreshed", refreshed)
     return refreshed
+
+
+def _keys() -> list[str]:
+    keys = get_settings().buffer_keys
+    if not keys:
+        raise DomainError(
+            "buffer_not_configured",
+            "Isi BUFFER_API_KEYS di .env dulu, lalu restart backend.",
+            status_code=409,
+        )
+    return keys
+
+
+async def list_buffer_channels() -> list[Channel]:
+    channels: list[Channel] = []
+    for ref, key in enumerate(_keys()):
+        try:
+            async with BufferClient(key, str(ref)) as buffer:
+                channels += await buffer.channels()
+        except BufferError as err:
+            raise DomainError(err.code, err.human, status_code=502, detail=err.raw) from err
+    return channels
+
+
+async def connect_buffer(
+    session: Session, account_id: str, key_ref: str, channel_id: str
+) -> Account:
+    account = get_account(session, account_id)
+    if account.route is not Route.buffer:
+        raise DomainError("not_buffer", f"{account.label} nggak lewat Buffer.", status_code=422)
+    channel = next(
+        (c for c in await list_buffer_channels() if (c.key_ref, c.id) == (key_ref, channel_id)),
+        None,
+    )
+    if channel is None:
+        raise DomainError(
+            "buffer_channel_not_found",
+            "Channel Buffer nggak ditemukan. Muat ulang daftar channel.",
+            status_code=422,
+        )
+    if channel.service != account.platform.value:
+        raise DomainError(
+            "buffer_channel_mismatch",
+            f"Channel {channel.name} bukan channel {account.platform.value}.",
+            status_code=422,
+        )
+    if other := session.exec(
+        select(Account).where(Account.buffer_channel_id == channel_id, Account.id != account.id)
+    ).first():
+        raise DomainError(
+            "buffer_channel_in_use",
+            f"Channel {channel.name} sudah dipakai {other.label}.",
+            status_code=409,
+        )
+    account.sqlmodel_update(
+        {"buffer_channel_id": channel_id, "buffer_key_ref": key_ref, "handle": channel.name}
+    )
+    session.add(account)
+    log_event(
+        session,
+        EventLevel.info,
+        "account",
+        account.id,
+        "Buffer tersambung",
+        {"channel": channel_id},
+    )
+    session.commit()
+    session.refresh(account)
+    return account
