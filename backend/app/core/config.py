@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from cryptography.fernet import Fernet
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
     app_base_url: str = "http://localhost:8000"
     tz_default: str = "Asia/Jakarta"
     secret_key: str = ""
+    fernet_key: str = ""
     admin_password_hash: str = ""
     database_url: str = "sqlite:///./data/schedler.db"
     scheduler_enabled: bool = True
@@ -41,9 +43,11 @@ class Settings(BaseSettings):
     ig_reels_max_seconds: int = 900
     tiktok_max_seconds: int = 600
 
+    ig_graph_version: str = "v27.0"
+
     @model_validator(mode="after")
     def _check_and_resolve(self) -> Settings:
-        missing = [] if self.secret_key else ["secret_key"]
+        missing = [f for f in ("secret_key", "fernet_key") if not getattr(self, f)]
         if self.storage_backend == "r2":
             missing += [f for f in _R2_FIELDS if not getattr(self, f)]
         elif not self.public_media_base_url:
@@ -51,6 +55,10 @@ class Settings(BaseSettings):
         if missing:
             names = ", ".join(f.upper() for f in missing)
             raise ValueError(f"Missing required settings in .env: {names}")
+        try:
+            Fernet(self.fernet_key)
+        except ValueError as exc:
+            raise ValueError("FERNET_KEY in .env is not a valid Fernet key") from exc
 
         # Relative paths in .env are relative to the repo root, not the process cwd.
         if not self.media_dir.is_absolute():

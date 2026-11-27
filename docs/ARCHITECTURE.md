@@ -117,7 +117,6 @@ Implementations: `IgDirectPublisher`, `BufferPublisher`, `FakePublisher` (tests,
 - Flow: `POST /{ig-user-id}/media` with `media_type=REELS`, `video_url=<public_url>`, `caption` → poll `GET /{container-id}?fields=status_code` once per minute, up to 5 min (`FINISHED` → publish; `ERROR`/`EXPIRED` → fail) → `POST /{ig-user-id}/media_publish?creation_id=…`.
 - Before publishing: `GET /{ig-user-id}/content_publishing_limit` and skip with retry-later if quota is used up.
 - Long-lived tokens last ~60 days; refresh via `GET /refresh_access_token?grant_type=ig_refresh_token`.
-- Alternative upload path, if the public URL is unreliable: resumable upload to `rupload.facebook.com`.
 
 ### 6.2 Buffer (GraphQL API, personal API key)
 

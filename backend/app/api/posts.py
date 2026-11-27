@@ -34,7 +34,7 @@ def _read(target: PostTarget, account: Account, media: MediaAsset) -> TargetRead
     return TargetRead.model_validate(
         target.model_dump()
         | {
-            "account": AccountRead.model_validate(account, from_attributes=True),
+            "account": AccountRead.of(account),
             "media": MediaRead.of(media),
         }
     )
