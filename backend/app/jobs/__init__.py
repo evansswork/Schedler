@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.jobs.buffer import buffer_refill_job, buffer_sync_job
+from app.jobs.notifications import daily_summary_job, send_notifications_job
 from app.jobs.process_media import process_media_job
 from app.jobs.publish_ig import publish_ig_due_job
 from app.jobs.refresh_ig_tokens import refresh_ig_tokens_job
@@ -44,6 +45,7 @@ def create_scheduler() -> AsyncIOScheduler:
     for func, job_id, seconds in (
         (buffer_refill_job, "buffer_refill", 120),
         (buffer_sync_job, "buffer_sync", 300),
+        (send_notifications_job, "send_notifications", 15),
     ):
         scheduler.add_job(
             func,
@@ -54,6 +56,17 @@ def create_scheduler() -> AsyncIOScheduler:
             coalesce=True,
             next_run_time=datetime.now(UTC),
         )
+    # 23:59 WIB, after the owner's last slot (23:30).
+    scheduler.add_job(
+        daily_summary_job,
+        "cron",
+        hour=23,
+        minute=59,
+        timezone="Asia/Jakarta",
+        id="daily_summary",
+        max_instances=1,
+        coalesce=True,
+    )
     return scheduler
 
 

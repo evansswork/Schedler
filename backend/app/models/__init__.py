@@ -178,3 +178,12 @@ class Setting(SQLModel, table=True):
     key: str = Field(primary_key=True)
     value_enc: str | None = None
     value: str | None = None
+
+
+class Notification(SQLModel, table=True):
+    """Telegram outbox: rows are written with the change they describe, sent by a job."""
+
+    id: str = Field(default_factory=new_id, primary_key=True)
+    text: str
+    created_at: datetime = _created()
+    sent_at: datetime | None = Field(default=None, sa_type=UTCDateTime, index=True)

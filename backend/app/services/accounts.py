@@ -1,7 +1,7 @@
 """Account connections (IG token, Buffer channel) and per-account settings."""
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, col, select
@@ -15,6 +15,7 @@ from app.publishers.buffer_client import BufferClient, BufferError, Channel
 from app.publishers.errors import ErrorKind
 from app.publishers.ig_client import IgClient, IgError
 from app.services.events import log_event
+from app.services.notifications import accounts_link, esc, notify
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 # The first refresh replaces this with the real `expires_in`.
 PASTED_TOKEN_LIFETIME = timedelta(days=60)
 REFRESH_WHEN_LEFT = timedelta(days=15)
+WARN_WHEN_LEFT = timedelta(days=7)
 
 
 # YouTube's standard categories (Buffer requires one per YouTube post).
@@ -174,6 +176,11 @@ async def refresh_expiring_tokens() -> int:
                 account = s.get_one(Account, account_id)
                 if err.kind is ErrorKind.reconnect:
                     mark_token_invalid(s, account)
+                    notify(
+                        s,
+                        f"🔑 Login {esc(account.label)} kedaluwarsa. Sambungkan ulang di "
+                        f"Akun &amp; slot: {esc(accounts_link())}",
+                    )
                 log_event(s, EventLevel.warn, "account", account_id, err.code, err.raw)
                 s.commit()
             continue
@@ -187,7 +194,30 @@ async def refresh_expiring_tokens() -> int:
         refreshed += 1
     if refreshed:
         logger.info("refresh_ig_tokens: %d refreshed", refreshed)
+    _warn_expiring(now)
     return refreshed
+
+
+def _warn_expiring(now: datetime) -> None:
+    """Daily reminder while a token that could not be refreshed has < 7 days left."""
+    with Session(get_engine()) as s:
+        for account in s.exec(
+            select(Account).where(
+                Account.platform == Platform.ig,
+                Account.active,
+                col(Account.token_enc).is_not(None),
+                col(Account.token_expires_at) > now,
+                col(Account.token_expires_at) < now + WARN_WHEN_LEFT,
+            )
+        ):
+            assert account.token_expires_at is not None
+            days = max(1, (account.token_expires_at - now).days)
+            notify(
+                s,
+                f"🔑 Login {esc(account.label)} kedaluwarsa {days} hari lagi. Sambungkan ulang "
+                f"di Akun &amp; slot: {esc(accounts_link())}",
+            )
+        s.commit()
 
 
 def _keys() -> list[str]:

@@ -45,6 +45,9 @@ class Settings(BaseSettings):
 
     ig_graph_version: str = "v27.0"
 
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+
     buffer_api_keys: str = ""  # comma-separated, one per legitimately owned Buffer organization
 
     @property
