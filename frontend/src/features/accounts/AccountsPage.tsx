@@ -7,6 +7,8 @@ import { tokenIssues } from '@/features/attention/useAttention'
 import { api, type Account } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 
+import { BufferDialog } from './BufferDialog'
+import { CategorySelect } from './CategorySelect'
 import { SlotEditor } from './SlotEditor'
 import { TokenDialog } from './TokenDialog'
 
@@ -37,8 +39,13 @@ function AccountCard({ account }: { account: Account }) {
             <span className={status.tone}>{status.text}</span>
           </p>
         </div>
-        {ig && <TokenDialog account={account} reconnect={account.connected} />}
+        {ig ? (
+          <TokenDialog account={account} reconnect={account.connected} />
+        ) : (
+          <BufferDialog account={account} />
+        )}
       </div>
+      {account.platform === 'youtube' && <CategorySelect account={account} />}
       <SlotEditor account={account} />
     </li>
   )

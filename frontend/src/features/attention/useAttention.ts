@@ -23,6 +23,11 @@ export function useAttention() {
     queryFn: () => api<Target[]>('/targets?status=failed'),
     refetchInterval: 60_000, // failures arrive from the publish job, not from this tab
   })
+  const manual = useQuery({
+    queryKey: queryKeys.targets(['manual_required']),
+    queryFn: () => api<Target[]>('/targets?status=manual_required'),
+    refetchInterval: 60_000,
+  })
   const accounts = useQuery({
     queryKey: queryKeys.accounts,
     queryFn: () => api<Account[]>('/accounts'),
@@ -30,8 +35,9 @@ export function useAttention() {
   const tokens = tokenIssues(accounts.data ?? [], new Date())
   return {
     failed,
+    manual,
     accounts,
     tokens,
-    count: (failed.data?.length ?? 0) + tokens.length,
+    count: (failed.data?.length ?? 0) + (manual.data?.length ?? 0) + tokens.length,
   }
 }

@@ -1,4 +1,4 @@
-import type { TargetStatus } from '@/lib/api'
+import type { Account, TargetStatus } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 const statusMeta: Record<TargetStatus, { label: string; color: string }> = {
@@ -13,8 +13,11 @@ const statusMeta: Record<TargetStatus, { label: string; color: string }> = {
   manual_required: { label: 'Manual', color: 'text-status-manual' },
 }
 
-export function StatusBadge({ status }: { status: TargetStatus }) {
-  const meta = statusMeta[status]
+const waitingForSlot = { label: 'Menunggu slot', color: 'text-status-waiting' }
+
+/** Buffer posts held locally until their channel has room show as "Menunggu slot". */
+export function StatusBadge({ status, route }: { status: TargetStatus; route?: Account['route'] }) {
+  const meta = status === 'queued_local' && route === 'buffer' ? waitingForSlot : statusMeta[status]
   return (
     <span
       className={cn(
