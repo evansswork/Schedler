@@ -7,6 +7,7 @@ import { pageHref } from '@/app/route'
 import { CancelButton, RetryButton } from '@/features/targets/actions'
 import { formatWIB } from '@/lib/format'
 
+import { ManualItem } from './ManualItem'
 import { useAttention, type TokenIssue } from './useAttention'
 
 function tokenText({ account, daysLeft }: TokenIssue) {
@@ -15,17 +16,18 @@ function tokenText({ account, daysLeft }: TokenIssue) {
 }
 
 export function AttentionPage() {
-  const { failed, accounts, tokens, count } = useAttention()
+  const { failed, manual, accounts, tokens, count } = useAttention()
   const failedTargets = failed.data ?? []
+  const manualTargets = manual.data ?? []
 
-  if (failed.isPending || accounts.isPending)
+  if (failed.isPending || manual.isPending || accounts.isPending)
     return (
       <div aria-busy className="space-y-3">
         <Skeleton className="h-20 w-full rounded-xl" />
         <Skeleton className="h-20 w-full rounded-xl" />
       </div>
     )
-  const error = failed.error ?? accounts.error
+  const error = failed.error ?? manual.error ?? accounts.error
   if (error)
     return (
       <div className="bg-card flex items-center justify-between gap-3 rounded-xl border px-4 py-6">
@@ -33,7 +35,7 @@ export function AttentionPage() {
         <Button
           variant="outline"
           size="lg"
-          onClick={() => void Promise.all([failed.refetch(), accounts.refetch()])}
+          onClick={() => void Promise.all([failed.refetch(), manual.refetch(), accounts.refetch()])}
         >
           Coba lagi
         </Button>
@@ -63,6 +65,18 @@ export function AttentionPage() {
                   <a href={pageHref('akun')}>Sambungkan ulang</a>
                 </Button>
               </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {manualTargets.length > 0 && (
+        <section aria-labelledby="att-manual" className="space-y-2">
+          <h2 id="att-manual" className="text-muted-foreground text-[11px] tracking-wide uppercase">
+            Upload manual <span className="tabular-nums">({manualTargets.length})</span>
+          </h2>
+          <ul className="bg-card divide-y rounded-xl border">
+            {manualTargets.map((t) => (
+              <ManualItem key={t.id} target={t} />
             ))}
           </ul>
         </section>

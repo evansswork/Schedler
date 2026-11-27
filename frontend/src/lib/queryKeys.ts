@@ -8,6 +8,8 @@ export const queryKeys = {
   targets: (statuses: readonly TargetStatus[]) => ['targets', statuses] as const,
   targetsRange: (start: string, end: string) => ['targets', 'range', start, end] as const,
   allTargets: ['targets'] as const,
+  bufferChannels: ['buffer-channels'] as const,
+  ytCategories: ['yt-categories'] as const,
   slotsPreview: (accountIds: string[], count: number) =>
     ['slots-preview', accountIds, count] as const,
 }

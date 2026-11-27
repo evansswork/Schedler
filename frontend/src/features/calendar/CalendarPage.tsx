@@ -11,6 +11,14 @@ import { toast } from 'sonner'
 
 import { PlatformDot } from '@/components/PlatformDot'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { api, type Target } from '@/lib/api'
 import { formatWIB, toWibInput } from '@/lib/format'
@@ -53,6 +61,10 @@ export function CalendarPage() {
   const phone = useMediaQuery('(max-width: 767px)')
   const [view, setView] = useState<View>('week')
   const [range, setRange] = useState({ start: '', end: '', title: '' })
+  // A drop that also changes Buffer waits for the owner's OK.
+  const [pending, setPending] = useState<{ chip: Chip; at: string; revert: () => void } | null>(
+    null,
+  )
 
   const targets = useQuery({
     queryKey: queryKeys.targetsRange(range.start, range.end),
@@ -88,7 +100,9 @@ export function CalendarPage() {
   function onDrop(arg: EventDropArg) {
     const chip = arg.event.extendedProps.chip as Chip
     if (!arg.event.start) return arg.revert()
-    move.mutate({ chip, at: wallToUtcIso(arg.event.start), revert: arg.revert })
+    const drop = { chip, at: wallToUtcIso(arg.event.start), revert: arg.revert }
+    if (chip.inBuffer) setPending(drop)
+    else move.mutate(drop)
   }
 
   const chips = toChips(targets.data ?? [])
@@ -187,6 +201,46 @@ export function CalendarPage() {
           datesSet={onDatesSet}
         />
       </div>
+      <Dialog
+        open={pending !== null}
+        onOpenChange={(open) => {
+          if (!open && pending) {
+            pending.revert()
+            setPending(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pindahkan jadwal di Buffer juga?</DialogTitle>
+            <DialogDescription>
+              {pending &&
+                `Post ini sudah dikirim ke Buffer. Jadwal di Buffer ikut diubah ke ${formatWIB(pending.at)}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => {
+                pending?.revert()
+                setPending(null)
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              size="lg"
+              onClick={() => {
+                if (pending) move.mutate(pending)
+                setPending(null)
+              }}
+            >
+              Pindahkan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {targets.isSuccess && chips.length === 0 && (
         <p className="text-muted-foreground text-[13px]">
           Belum ada post di periode ini. Tekan N untuk buat post.

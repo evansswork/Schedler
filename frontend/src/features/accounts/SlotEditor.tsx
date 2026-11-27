@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { api, type Account, type SlotsIn } from '@/lib/api'
+import { api, type Account, type AccountUpdate } from '@/lib/api'
 import { queryKeys } from '@/lib/queryKeys'
 
 const DAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'] // ISO weekday 1..7
@@ -20,7 +20,7 @@ export function SlotEditor({ account }: { account: Account }) {
   const [weekdays, setWeekdays] = useState(account.weekdays)
   const [draft, setDraft] = useState('')
   const save = useMutation({
-    mutationFn: (body: SlotsIn) =>
+    mutationFn: (body: AccountUpdate) =>
       api<Account>(`/accounts/${account.id}`, { method: 'PATCH', json: body }),
     onSuccess: (saved) => {
       toast.success(`Slot ${saved.label} disimpan.`)

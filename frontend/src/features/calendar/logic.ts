@@ -12,9 +12,10 @@ export type Chip = {
   orientation: Orientation | null
   status: TargetStatus
   movable: boolean
+  inBuffer: boolean // moving it also edits the post in Buffer
 }
 
-const MOVABLE: readonly TargetStatus[] = ['waiting_media', 'queued_local']
+const MOVABLE: readonly TargetStatus[] = ['waiting_media', 'queued_local', 'sent_to_buffer']
 // The chip shows its most urgent status.
 const URGENCY: readonly TargetStatus[] = [
   'failed',
@@ -46,6 +47,7 @@ export function toChips(targets: Target[]): Chip[] {
       orientation: first.media.orientation ?? null,
       status: URGENCY.find((s) => group.some((t) => t.status === s)) ?? first.status,
       movable: group.every((t) => MOVABLE.includes(t.status)),
+      inBuffer: group.some((t) => t.status === 'sent_to_buffer'),
     }
   })
 }

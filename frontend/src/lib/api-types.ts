@@ -102,8 +102,59 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Patch Slots */
-        patch: operations["patch_slots_api_v1_accounts__account_id__patch"];
+        /** Patch Account */
+        patch: operations["patch_account_api_v1_accounts__account_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/accounts/youtube-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Youtube Categories */
+        get: operations["youtube_categories_api_v1_accounts_youtube_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounts/buffer-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Buffer Channels */
+        get: operations["buffer_channels_api_v1_accounts_buffer_channels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounts/{account_id}/buffer-channel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Buffer Channel */
+        put: operations["put_buffer_channel_api_v1_accounts__account_id__buffer_channel_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/accounts/{account_id}/ig-token": {
@@ -259,6 +310,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/targets/{target_id}/mark-published": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Target Published */
+        post: operations["mark_target_published_api_v1_targets__target_id__mark_published_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/slots/preview": {
         parameters: {
             query?: never;
@@ -303,11 +371,46 @@ export interface components {
             slots: string[];
             /** Weekdays */
             weekdays: number[];
+            /** Yt Category Id */
+            yt_category_id: string | null;
+            /** Buffer Channel Id */
+            buffer_channel_id: string | null;
+        };
+        /** AccountUpdate */
+        AccountUpdate: {
+            /** Slots */
+            slots?: string[] | null;
+            /** Weekdays */
+            weekdays?: number[] | null;
+            /** Yt Category Id */
+            yt_category_id?: string | null;
         };
         /** Body_upload_api_v1_media_upload_post */
         Body_upload_api_v1_media_upload_post: {
             /** Files */
             files: string[];
+        };
+        /** BufferChannelIn */
+        BufferChannelIn: {
+            /** Key Ref */
+            key_ref: string;
+            /** Channel Id */
+            channel_id: string;
+        };
+        /** BufferChannelRead */
+        BufferChannelRead: {
+            /** Key Ref */
+            key_ref: string;
+            /** Organization */
+            organization: string;
+            /** Id */
+            id: string;
+            /** Service */
+            service: string;
+            /** Name */
+            name: string;
+            /** Is Disconnected */
+            is_disconnected: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -429,13 +532,6 @@ export interface components {
          * @enum {string}
          */
         ScheduleMode: "exact" | "slot";
-        /** SlotsIn */
-        SlotsIn: {
-            /** Slots */
-            slots: string[];
-            /** Weekdays */
-            weekdays: number[];
-        };
         /** TargetRead */
         TargetRead: {
             /** Id */
@@ -605,7 +701,7 @@ export interface operations {
             };
         };
     };
-    patch_slots_api_v1_accounts__account_id__patch: {
+    patch_account_api_v1_accounts__account_id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -616,7 +712,84 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SlotsIn"];
+                "application/json": components["schemas"]["AccountUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    youtube_categories_api_v1_accounts_youtube_categories_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
+    buffer_channels_api_v1_accounts_buffer_channels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BufferChannelRead"][];
+                };
+            };
+        };
+    };
+    put_buffer_channel_api_v1_accounts__account_id__buffer_channel_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BufferChannelIn"];
             };
         };
         responses: {
@@ -904,6 +1077,37 @@ export interface operations {
         };
     };
     cancel_target_api_v1_targets__target_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_target_published_api_v1_targets__target_id__mark_published_post: {
         parameters: {
             query?: never;
             header?: never;

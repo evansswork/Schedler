@@ -13,11 +13,27 @@ import { api, type Target, type TargetStatus } from '@/lib/api'
 import { formatWIB } from '@/lib/format'
 import { queryKeys } from '@/lib/queryKeys'
 
+type TabSpec = {
+  label: string
+  statuses: TargetStatus[]
+  empty: string
+  keep?: (t: Target) => boolean
+}
+
+const heldForBuffer = (t: Target) => t.status === 'queued_local' && t.account.route === 'buffer'
+
 const TABS = {
   scheduled: {
     label: 'Terjadwal',
     statuses: ['queued_local', 'sent_to_buffer'],
     empty: 'Belum ada video terjadwal. Tempel link TikTok untuk mulai.',
+    keep: (t) => !heldForBuffer(t),
+  },
+  waiting: {
+    label: 'Menunggu slot',
+    statuses: ['queued_local'],
+    empty: 'Nggak ada yang menunggu slot Buffer.',
+    keep: heldForBuffer,
   },
   processing: {
     label: 'Sedang diproses',
@@ -34,7 +50,12 @@ const TABS = {
     statuses: ['failed'],
     empty: 'Nggak ada yang gagal. Semua aman.',
   },
-} satisfies Record<string, { label: string; statuses: TargetStatus[]; empty: string }>
+  manual: {
+    label: 'Manual',
+    statuses: ['manual_required'],
+    empty: 'Nggak ada yang perlu diupload manual.',
+  },
+} satisfies Record<string, TabSpec>
 type Tab = keyof typeof TABS
 
 function fetchTargets(statuses: readonly TargetStatus[]) {
@@ -66,7 +87,7 @@ function TargetRow({ t }: { t: Target }) {
             {t.account.label}
           </span>
           <span className="tabular-nums">{formatWIB(t.scheduled_at)}</span>
-          <StatusBadge status={t.status} />
+          <StatusBadge status={t.status} route={t.account.route} />
         </p>
       </div>
       <span className="hidden items-center gap-1.5 md:inline-flex">
@@ -75,7 +96,7 @@ function TargetRow({ t }: { t: Target }) {
       </span>
       <span className="hidden tabular-nums md:block">{formatWIB(t.scheduled_at)}</span>
       <span className="hidden md:block">
-        <StatusBadge status={t.status} />
+        <StatusBadge status={t.status} route={t.account.route} />
       </span>
       <div className="flex items-center justify-end gap-1">
         {t.status === 'failed' && <RetryButton target={t} compact />}
@@ -120,10 +141,14 @@ export function QueuePage({ onCreate }: { onCreate: () => void }) {
     refetchInterval: busy ? 4000 : false,
   })
 
+  const spec: TabSpec = TABS[tab]
+  const kept = (current.data ?? []).filter(spec.keep ?? (() => true))
+  const rows = tab === 'published' ? kept.toReversed() : kept
+
   return (
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList className="h-9">
+        <TabsList className="h-9 max-w-full justify-start overflow-x-auto">
           {(Object.keys(TABS) as Tab[]).map((key) => (
             <TabsTrigger key={key} value={key} className="px-3">
               {TABS[key].label}
@@ -162,7 +187,7 @@ export function QueuePage({ onCreate }: { onCreate: () => void }) {
               Coba lagi
             </Button>
           </div>
-        ) : current.data.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-6">
             <p className="text-muted-foreground">{TABS[tab].empty}</p>
             {tab === 'scheduled' && (
@@ -173,7 +198,7 @@ export function QueuePage({ onCreate }: { onCreate: () => void }) {
           </div>
         ) : (
           <ul className="divide-y">
-            {(tab === 'published' ? current.data.toReversed() : current.data).map((t) => (
+            {rows.map((t) => (
               <TargetRow key={t.id} t={t} />
             ))}
           </ul>

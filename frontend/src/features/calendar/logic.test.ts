@@ -36,7 +36,13 @@ describe('toChips', () => {
       platforms: ['ig', 'youtube'],
       labels: ['IG #1', 'YT #1'],
       movable: true,
+      inBuffer: false,
     })
+  })
+
+  it('marks chips already handed to Buffer', () => {
+    const [chip] = toChips([target({ status: 'sent_to_buffer', platform: 'youtube' })])
+    expect(chip).toMatchObject({ movable: true, inBuffer: true })
   })
 
   it('shows the most urgent status and locks chips that are already moving', () => {
