@@ -3,8 +3,10 @@ from datetime import UTC, datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.jobs.process_media import process_media_job
+from app.jobs.refresh_ig_tokens import refresh_ig_tokens_job
 
 PROCESS_MEDIA = "process_media"
+REFRESH_IG_TOKENS = "refresh_ig_tokens"
 
 
 def create_scheduler() -> AsyncIOScheduler:
@@ -14,6 +16,15 @@ def create_scheduler() -> AsyncIOScheduler:
         "interval",
         seconds=30,
         id=PROCESS_MEDIA,
+        max_instances=1,
+        coalesce=True,
+        next_run_time=datetime.now(UTC),
+    )
+    scheduler.add_job(
+        refresh_ig_tokens_job,
+        "interval",
+        hours=24,
+        id=REFRESH_IG_TOKENS,
         max_instances=1,
         coalesce=True,
         next_run_time=datetime.now(UTC),

@@ -15,20 +15,28 @@ description: Rules, endpoints and gotchas for Schedler's external integrations (
 
 ## Instagram (direct)
 
-- API: Instagram API with Instagram Login. Host `https://graph.instagram.com/<version>`.
+- API: Instagram API with Instagram Login. Host `https://graph.instagram.com/<version>`; version from `IG_GRAPH_VERSION` (v27.0 as of 2026-11; check https://developers.facebook.com/docs/graph-api/changelog).
+- Auth: `Authorization: Bearer <token>` header. Account id: `GET /me?fields=user_id,username` → `{"data": [{"user_id", "username"}]}` (Meta documents the `data` wrapper; the client accepts a flat object too). Use `user_id`, not `id` (app-scoped).
 - Scopes: `instagram_business_basic`, `instagram_business_content_publish`.
-- Access: Standard Access, no App Review, because the app only serves accounts the owner owns. Tokens for own accounts can be generated in the Meta App Dashboard.
+- Access: Standard Access, no App Review, because the app only serves accounts the owner owns. Tokens for own accounts: App Dashboard → Instagram → API setup with Instagram business login → Generate token. These are long-lived (60 days).
 - Account must be Professional (we use Creator).
 - Publish a Reel:
   1. `POST /{ig-user-id}/media` with `media_type=REELS`, `video_url=<public https url>`, `caption=<text>` → `{id: container_id}`
-  2. Poll `GET /{container_id}?fields=status_code` once per minute, ≤ 5 tries: `IN_PROGRESS` → wait; `FINISHED` → publish; `ERROR` or `EXPIRED` → fail.
+  2. Poll `GET /{container_id}?fields=status_code,status` once per minute (Meta recommends ≤ 5 min; Schedler waits up to 15 min). Values: `IN_PROGRESS` → wait; `FINISHED` → publish; `PUBLISHED` → already done (use for crash recovery); `ERROR` (`status` holds the subcode) or `EXPIRED` → fail.
   3. `POST /{ig-user-id}/media_publish?creation_id={container_id}` → `{id: media_id}`
   4. Optional: `GET /{media_id}?fields=permalink` for `published_url`.
-- Quota: `GET /{ig-user-id}/content_publishing_limit?fields=quota_usage,config` before step 3. Meta docs say both 50 and 100 per 24 h, so trust the API's `config.quota_total`.
+- Quota: `GET /{ig-user-id}/content_publishing_limit?fields=quota_usage,config` before step 3 → `{"data": [{"quota_usage": 2, "config": {"quota_total": 50, "quota_duration": 86400}}]}`. Meta docs say both 50 and 100 per 24 h, so trust the API's `config.quota_total`. The reference example uses graph.facebook.com; we call graph.instagram.com (per its requirements table). Verify on the first live run.
 - Containers expire after 24 h; max 400 containers per 24 h. Create the container close to publish time (≤ 10 min before).
-- Tokens: long-lived ~60 days. Refresh with `GET /refresh_access_token?grant_type=ig_refresh_token&access_token=…` (token must be ≥ 24 h old and not expired).
-- Caption: ≤ 2,200 characters, ≤ 30 hashtags.
-- Fallback when the URL fetch is flaky: resumable upload to `https://rupload.facebook.com/ig-api-upload/{container_id}`.
+- Tokens: long-lived 60 days. Refresh with unversioned `GET https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=…` → `access_token`, `token_type`, `expires_in` (token must be ≥ 24 h old and not expired; an expired token cannot be refreshed).
+- Caption: ≤ 2,200 characters, ≤ 30 hashtags, ≤ 20 @ tags.
+- Reels file: MP4/MOV, H.264/HEVC, AAC ≤ 48 kHz, moov atom first, 3 s to 15 min, ≤ 300 MB, ≤ 1920 px wide.
+- Resumable upload (`rupload.facebook.com`) is documented for the Facebook Login variant only; with Instagram Login use `video_url`.
+- Errors (`error.code` / `error.error_subcode`), mapped in `publishers/ig_client.py`:
+  - 190 (any subcode): token invalid/expired → reconnect, no retry. Not on Meta's IG error page, but standard Graph OAuth.
+  - 9 / 2207042: publishing limit reached → retry later without counting an attempt.
+  - 9004 / 2207052: media could not be fetched from the URL → retry (check storage).
+  - 352 / 2207026: unsupported video format; 36004 / 2207010: caption too long; 25 / 2207050: account restricted; 4 / 2207051: spam restriction → no retry.
+  - 4, 9, 17, 32, 613 (other subcodes) and HTTP 429/5xx → rate limit or outage → retry.
 
 ## Buffer (YouTube + TikTok)
 

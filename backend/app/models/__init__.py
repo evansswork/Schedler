@@ -11,6 +11,9 @@ from ulid import ULID
 
 from app.core.db import UTCDateTime, utcnow
 
+# Owner's default posting times (WIB); editable per account in "Akun & slot".
+DEFAULT_SLOTS = ["19:30", "20:30", "21:30", "22:30", "23:30"]
+
 
 def new_id() -> str:
     return str(ULID())
@@ -100,7 +103,7 @@ class Account(SQLModel, table=True):
     token_enc: str | None = None
     token_expires_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
     timezone: str = "Asia/Jakarta"
-    slots: list[str] = Field(default_factory=list, sa_type=JSON)
+    slots: list[str] = Field(default_factory=lambda: list(DEFAULT_SLOTS), sa_type=JSON)
     weekdays: list[int] = Field(default_factory=lambda: [1, 2, 3, 4, 5, 6, 7], sa_type=JSON)
     active: bool = True
     created_at: datetime = _created()
