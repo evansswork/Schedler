@@ -20,13 +20,13 @@ Each phase ends with: acceptance criteria pass → merge to `main` → push → 
 
 ## Phase 2: Instagram direct → `v0.2.0`
 
-- [ ] Meta app setup guide in README (Instagram API with Instagram Login, Standard Access)
-- [ ] Account connect (paste a long-lived token first; OAuth optional)
-- [ ] `IgDirectPublisher`: quota check → REELS container → poll → publish; retries; human error messages
-- [ ] `publish_ig_due` job + startup catch-up rule (≤ 6 h)
-- [ ] `refresh_ig_tokens` job
-- [ ] Slots + "next free slot" scheduling + batch spreading
-- [ ] Calendar view (week/month) with drag-to-reschedule
+- [x] Meta app setup guide in README (Instagram API with Instagram Login, Standard Access)
+- [x] Account connect (paste a long-lived token first; OAuth optional)
+- [x] `IgDirectPublisher`: quota check → REELS container → poll → publish; retries; human error messages
+- [x] `publish_ig_due` job + startup catch-up rule (≤ 6 h)
+- [x] `refresh_ig_tokens` job
+- [x] Slots + "next free slot" scheduling + batch spreading
+- [x] Calendar view (week/month) with drag-to-reschedule
 
 **Acceptance:** with `DRY_RUN=false` and one IG account, a scheduled Reel goes live within 5 minutes of its time, and a forced failure retries 3x and then shows in "Perlu perhatian".
 
