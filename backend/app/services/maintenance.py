@@ -4,9 +4,12 @@ import asyncio
 import logging
 import os
 import signal
+import sqlite3
 import sys
 from datetime import timedelta
 from importlib.metadata import version
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import case
 from sqlmodel import Session, col, func, select
@@ -128,3 +131,25 @@ def _record(message: str, ok: bool = True) -> str:
         log_event(s, EventLevel.info if ok else EventLevel.warn, "system", "ytdlp", message)
         s.commit()
     return message
+
+
+BACKUPS_KEPT = 7
+SQLITE = "sqlite:///"
+
+
+def backup_db() -> Path | None:
+    """Online copy of the SQLite DB to data/backups/schedler-YYYY-MM-DD.db; keeps the last 7."""
+    url = get_settings().database_url
+    if not url.startswith(SQLITE):
+        return None
+    source = Path(url.removeprefix(SQLITE))
+    folder = source.parent / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    day = utcnow().astimezone(ZoneInfo("Asia/Jakarta")).date().isoformat()
+    target = folder / f"schedler-{day}.db"
+    with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
+        src.backup(dst)  # consistent copy even while the app is writing
+    for old in sorted(folder.glob("schedler-*.db"))[:-BACKUPS_KEPT]:
+        old.unlink()
+    logger.info("backup_db: %s", target.name)
+    return target

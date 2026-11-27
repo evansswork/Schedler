@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.jobs.buffer import buffer_refill_job, buffer_sync_job
-from app.jobs.maintenance import cleanup_media_job, update_ytdlp_job
+from app.jobs.maintenance import backup_db_job, cleanup_media_job, update_ytdlp_job
 from app.jobs.notifications import daily_summary_job, send_notifications_job
 from app.jobs.process_media import process_media_job
 from app.jobs.publish_ig import publish_ig_due_job
@@ -69,7 +69,17 @@ def create_scheduler() -> AsyncIOScheduler:
         max_instances=1,
         coalesce=True,
     )
-    # 04:00 WIB: no posting slots then.
+    # 03:00 WIB backup, 04:00 WIB yt-dlp update: no posting slots then.
+    scheduler.add_job(
+        backup_db_job,
+        "cron",
+        hour=3,
+        minute=0,
+        timezone="Asia/Jakarta",
+        id="backup_db",
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.add_job(
         update_ytdlp_job,
         "cron",
