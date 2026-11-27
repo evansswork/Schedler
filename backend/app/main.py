@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.errors import install_error_handlers
 from app.jobs import create_scheduler
 from app.services.media import reset_stuck_media
+from app.services.publishing import fail_missed_ig
 
 SESSION_MAX_AGE_S = 30 * 24 * 3600
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     scheduler = None
     if get_settings().scheduler_enabled:
         reset_stuck_media()
+        fail_missed_ig()  # before the first publish run
         scheduler = create_scheduler()
         scheduler.start()
     app.state.scheduler = scheduler

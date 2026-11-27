@@ -73,11 +73,13 @@ Indexes: `PostTarget(status, scheduled_at)`, `PostTarget(account_id, scheduled_a
 ```
 draft ──save──▶ waiting_media ──media ready──▶ queued_local
 queued_local ──(route=buffer, slot free)──▶ sent_to_buffer ──buffer published──▶ published
-queued_local ──(route=ig_direct, due)────▶ publishing ──ok──▶ published
-publishing / sent_to_buffer ──error──▶ (attempts<3) queued_local with next_attempt_at
+queued_local ──(route=ig_direct, ≤ 5 min before due: container created)──▶ publishing ──container FINISHED and due──▶ published
+publishing / sent_to_buffer ──retryable error──▶ (attempts<3) queued_local with next_attempt_at (+2 min, +5 min)
                                       (attempts=3) failed
+publishing ──IG quota used up──▶ publishing, next_attempt_at +1 h (not counted as an attempt)
+any IG step ──token invalid / account not connected / video rejected──▶ failed (no retry)
 TikTok route unsupported ──▶ manual_required
-any non-final ──user cancel──▶ cancelled  (also deletes the Buffer post if sent)
+waiting_media / queued_local / failed ──user cancel──▶ cancelled  (publishing cannot be cancelled; Buffer posts: Phase 3)
 ```
 
 ## 5. Background jobs (APScheduler, persisted state in DB; jobs are idempotent)
@@ -85,7 +87,7 @@ any non-final ──user cancel──▶ cancelled  (also deletes the Buffer pos
 | Job | Every | What it does |
 |---|---|---|
 | `process_media` | 30 s | Picks `pending` media: download (yt-dlp), probe, normalize, store, set `public_url`, mark `ready`; moves its targets to `queued_local` |
-| `publish_ig_due` | 1 min | For IG targets with `scheduled_at <= now` (and `next_attempt_at` passed): check quota → create REELS container → poll `status_code` → `media_publish` |
+| `publish_ig_due` | 1 min | One step per IG target with `scheduled_at <= now + 5 min` (and `next_attempt_at` passed): `submit` creates the REELS container (`provider_ref`); `sync` polls `status_code` and, once `FINISHED` and due, checks quota → `media_publish` → permalink. A container already `PUBLISHED` (crash recovery) is just marked published |
 | `buffer_refill` | 2 min | Per Buffer channel: count queued posts in Buffer (cached, max 1 call per channel per run). If < 10, send the earliest `queued_local` targets with `dueAt = scheduled_at` |
 | `buffer_sync` | 5 min | Poll sent posts for status → `published` (+ URL) or error → retry/failed |
 | `cleanup_media` | 1 h | Delete files whose targets are all final, after 24 h grace; mark `deleted` |
