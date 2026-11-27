@@ -45,6 +45,12 @@ class Settings(BaseSettings):
 
     ig_graph_version: str = "v27.0"
 
+    buffer_api_keys: str = ""  # comma-separated, one per legitimately owned Buffer organization
+
+    @property
+    def buffer_keys(self) -> list[str]:
+        return [k.strip() for k in self.buffer_api_keys.split(",") if k.strip()]
+
     @model_validator(mode="after")
     def _check_and_resolve(self) -> Settings:
         missing = [f for f in ("secret_key", "fernet_key") if not getattr(self, f)]

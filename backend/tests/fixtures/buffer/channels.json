@@ -1,0 +1,5 @@
+{"data": {"channels": [
+  {"id": "ch-yt1", "name": "owner-ai", "displayName": "Owner AI", "service": "youtube", "isDisconnected": false},
+  {"id": "ch-yt2", "name": "owner-vlog", "displayName": "Owner Vlog", "service": "youtube", "isDisconnected": false},
+  {"id": "ch-tt", "name": "owner.tt", "displayName": null, "service": "tiktok", "isDisconnected": true}
+]}}

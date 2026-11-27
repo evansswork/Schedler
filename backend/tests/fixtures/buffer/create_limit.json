@@ -1,0 +1,1 @@
+{"data": {"createPost": {"__typename": "LimitReachedError", "message": "You have reached the maximum number of scheduled posts for this channel."}}}
