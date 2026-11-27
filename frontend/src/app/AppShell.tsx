@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { LogOut, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { LogOut, Plus, Settings } from 'lucide-react'
+import { useCallback, useState } from 'react'
 
 import { PlatformDot } from '@/components/PlatformDot'
 import { Button } from '@/components/ui/button'
@@ -10,19 +10,16 @@ import { AttentionPage } from '@/features/attention/AttentionPage'
 import { useAttention } from '@/features/attention/useAttention'
 import { CalendarPage } from '@/features/calendar/CalendarPage'
 import { ComposerPanel } from '@/features/composer/ComposerPanel'
+import { HealthPill } from '@/features/health/HealthPill'
+import { useHealth } from '@/features/health/useHealth'
 import { QueuePage } from '@/features/queue/QueuePage'
+import { SettingsPage } from '@/features/settings/SettingsPage'
 import { api, type Me } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 import { Count, TabBar } from './Navigation'
 import { ICONS, PAGES, pageHref, usePage, type Page } from './route'
-
-function isTyping(el: EventTarget | null) {
-  return (
-    el instanceof HTMLElement &&
-    (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
-  )
-}
+import { useShortcuts } from './shortcuts'
 
 export function AppShell({ me }: { me: Me }) {
   const queryClient = useQueryClient()
@@ -34,24 +31,11 @@ export function AppShell({ me }: { me: Me }) {
     mutationFn: () => api<undefined>('/auth/logout', { method: 'POST' }),
     onSuccess: () => queryClient.clear(),
   })
-  const openComposer = () => setComposerOpen(true)
+  const openComposer = useCallback(() => setComposerOpen(true), [])
+  const health = useHealth()
+  const meters = new Map(health.data?.accounts.map((a) => [a.id, a]))
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        e.key.toLowerCase() === 'n' &&
-        !e.metaKey &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !isTyping(e.target)
-      ) {
-        e.preventDefault()
-        setComposerOpen(true)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useShortcuts(openComposer)
 
   const pages = Object.keys(PAGES) as Page[]
 
@@ -102,16 +86,29 @@ export function AppShell({ me }: { me: Me }) {
               </div>
             ) : (
               <ul className="space-y-1">
-                {accounts.data?.map((a) => (
-                  <li key={a.id} className="flex h-7 items-center gap-2">
-                    <PlatformDot platform={a.platform} /> {a.label}
-                    {a.route === 'ig_direct' && !a.connected && (
-                      <span className="text-muted-foreground ml-auto text-[12px]">
-                        belum terhubung
+                {accounts.data?.map((a) => {
+                  const m = meters.get(a.id)
+                  return (
+                    <li key={a.id} className="flex h-7 items-center gap-2">
+                      <PlatformDot platform={a.platform} /> {a.label}
+                      <span
+                        className={cn(
+                          'text-muted-foreground ml-auto text-[12px] tabular-nums',
+                          m && m.connected && m.used >= m.limit * 0.8 && 'text-status-waiting',
+                        )}
+                        title={
+                          m?.connected
+                            ? a.route === 'ig_direct'
+                              ? 'Post 24 jam terakhir / kuota IG'
+                              : 'Post di antrian Buffer / batas'
+                            : undefined
+                        }
+                      >
+                        {!a.connected ? 'belum terhubung' : m ? `${m.used}/${m.limit}` : ''}
                       </span>
-                    )}
-                  </li>
-                ))}
+                    </li>
+                  )
+                })}
               </ul>
             )}
             {accounts.isError && (
@@ -133,20 +130,21 @@ export function AppShell({ me }: { me: Me }) {
         <div className="min-w-0 flex-1 pb-16 lg:pb-0">
           <header className="flex h-14 items-center justify-between gap-3 border-b px-4 lg:px-6">
             <h1 className="text-xl font-medium">{PAGES[page]}</h1>
-            <Button
-              variant="ghost"
-              size="lg"
-              className="text-muted-foreground h-11 lg:hidden"
-              onClick={() => logout.mutate()}
-            >
-              <LogOut aria-hidden /> Keluar
-            </Button>
+            <div className="flex items-center gap-1">
+              <HealthPill />
+              <Button asChild variant="ghost" size="icon-lg" className="size-11 lg:hidden">
+                <a href={pageHref('pengaturan')} aria-label="Pengaturan">
+                  <Settings aria-hidden />
+                </a>
+              </Button>
+            </div>
           </header>
           <main className="p-4 lg:p-6">
             {page === 'kalender' && <CalendarPage />}
             {page === 'antrian' && <QueuePage onCreate={openComposer} />}
             {page === 'perhatian' && <AttentionPage />}
             {page === 'akun' && <AccountsPage />}
+            {page === 'pengaturan' && <SettingsPage onLogout={() => logout.mutate()} />}
           </main>
         </div>
       </div>

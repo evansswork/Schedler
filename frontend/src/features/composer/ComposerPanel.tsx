@@ -17,7 +17,7 @@ import { fromWibInput } from '@/lib/format'
 import { queryKeys } from '@/lib/queryKeys'
 
 import { AccountPicker } from './AccountPicker'
-import { accountWarnings, nextTimes, submitError, type ComposerValues } from './logic'
+import { accountWarnings, apiOverrides, nextTimes, submitError, type ComposerValues } from './logic'
 import { SchedulePicker } from './SchedulePicker'
 import { SourceInput } from './SourceInput'
 import { VideoRow } from './VideoRow'
@@ -124,11 +124,15 @@ export function ComposerPanel({ open, onOpenChange, accounts }: Props) {
         media_id: r.mediaId,
         caption: r.caption,
         scheduled_at: values.mode === 'exact' ? fromWibInput(r.time) : null,
+        overrides: apiOverrides(r),
       })),
     })
   }
 
   const readyMedia = [...media.values()].filter((m) => m.status === 'ready')
+  const platforms = [
+    ...new Set(accounts.filter((a) => accountIds.includes(a.id)).map((a) => a.platform)),
+  ]
   const warnings = accountWarnings(accounts, accountIds, readyMedia)
   const summary =
     rows.length && accountIds.length
@@ -167,12 +171,19 @@ export function ComposerPanel({ open, onOpenChange, accounts }: Props) {
                     key={field.id}
                     index={i}
                     media={media.get(field.mediaId)}
-                    caption={rows[i]?.caption ?? ''}
+                    row={rows[i] ?? field}
+                    platforms={platforms}
                     time={mode === 'exact' ? (rows[i]?.time ?? '') : null}
                     onCaption={(v) => {
                       form.setValue(`rows.${i}.caption`, v)
                       form.setValue(`rows.${i}.captionTouched`, true)
                     }}
+                    onOverride={(platform, patch) =>
+                      form.setValue(`rows.${i}.overrides`, {
+                        ...rows[i]?.overrides,
+                        [platform]: { ...rows[i]?.overrides?.[platform], ...patch },
+                      })
+                    }
                     onTime={(v) => form.setValue(`rows.${i}.time`, v)}
                     onRemove={() => remove(i)}
                   />

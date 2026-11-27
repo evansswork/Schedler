@@ -4,17 +4,21 @@ import { OrientationBadge } from '@/components/OrientationBadge'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
-import type { Media } from '@/lib/api'
+import type { Media, Platform } from '@/lib/api'
 import { formatDuration } from '@/lib/format'
+
+import { CaptionTabs } from './CaptionTabs'
+import type { Override, Row } from './logic'
 
 type Props = {
   index: number
   media: Media | undefined
-  caption: string
+  row: Row
+  platforms: Platform[]
   time: string | null // null: the time comes from the account slots
   onCaption: (value: string) => void
+  onOverride: (platform: Platform, patch: Override) => void
   onTime: (value: string) => void
   onRemove: () => void
 }
@@ -41,7 +45,8 @@ function StatusLine({ media }: { media: Media | undefined }) {
   )
 }
 
-export function VideoRow({ index, media, caption, time, onCaption, onTime, onRemove }: Props) {
+export function VideoRow(props: Props) {
+  const { index, media, row, platforms, time, onCaption, onOverride, onTime, onRemove } = props
   const n = index + 1
   return (
     <li className="flex gap-3 rounded-xl border p-3">
@@ -75,14 +80,16 @@ export function VideoRow({ index, media, caption, time, onCaption, onTime, onRem
             <X aria-hidden />
           </Button>
         </div>
-        <Textarea
-          value={caption}
-          onChange={(e) => onCaption(e.target.value)}
-          rows={2}
+        <CaptionTabs
+          n={n}
+          row={row}
+          platforms={platforms}
+          videoUrl={media?.public_url ?? null}
           placeholder={
             media?.status === 'ready' ? 'Caption' : 'Caption (diisi otomatis dari TikTok)'
           }
-          aria-label={`Caption video ${n}`}
+          onCaption={onCaption}
+          onOverride={onOverride}
         />
         {time !== null && (
           <label className="flex flex-col gap-1 text-[13px] sm:flex-row sm:items-center sm:gap-2">

@@ -347,10 +347,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/telegram/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Telegram Test */
+        post: operations["telegram_test_api_v1_settings_telegram_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/ytdlp/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ytdlp Update */
+        post: operations["ytdlp_update_api_v1_settings_ytdlp_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/health/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health Summary */
+        get: operations["health_summary_api_v1_health_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountHealth */
+        AccountHealth: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            route: components["schemas"]["Route"];
+            /** Connected */
+            connected: boolean;
+            /** Used */
+            used: number;
+            /** Limit */
+            limit: number;
+            /** Token Days Left */
+            token_days_left: number | null;
+        };
         /** AccountRead */
         AccountRead: {
             /** Id */
@@ -390,6 +457,17 @@ export interface components {
             /** Files */
             files: string[];
         };
+        /** BufferBudget */
+        BufferBudget: {
+            /** Day Left */
+            day_left: number | null;
+            /** Day Quota */
+            day_quota: number | null;
+            /** Month Left */
+            month_left: number | null;
+            /** Month Quota */
+            month_quota: number | null;
+        };
         /** BufferChannelIn */
         BufferChannelIn: {
             /** Key Ref */
@@ -416,6 +494,36 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HealthSummary */
+        HealthSummary: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "warn" | "error";
+            /** Problems */
+            problems: string[];
+            /** Notices */
+            notices: string[];
+            /** Dry Run */
+            dry_run: boolean;
+            /** Accounts */
+            accounts: components["schemas"]["AccountHealth"][];
+            /** Failed */
+            failed: number;
+            /** Manual */
+            manual: number;
+            /** Telegram */
+            telegram: boolean;
+            /** Outbox Waiting */
+            outbox_waiting: number;
+            buffer_budget: components["schemas"]["BufferBudget"] | null;
+            /** Storage Backend */
+            storage_backend: string;
+            /** Storage Bytes */
+            storage_bytes: number;
+            ytdlp: components["schemas"]["Ytdlp"];
         };
         /** IgTokenIn */
         IgTokenIn: {
@@ -481,6 +589,11 @@ export interface components {
          * @enum {string}
          */
         MediaStatus: "pending" | "downloading" | "processing" | "ready" | "failed" | "deleted";
+        /** Message */
+        Message: {
+            /** Message */
+            message: string;
+        };
         /**
          * Orientation
          * @enum {string}
@@ -491,6 +604,16 @@ export interface components {
          * @enum {string}
          */
         Platform: "ig" | "youtube" | "tiktok";
+        /**
+         * PlatformText
+         * @description Per-platform override of the shared caption (empty = use the shared one).
+         */
+        PlatformText: {
+            /** Caption */
+            caption?: string | null;
+            /** Title */
+            title?: string | null;
+        };
         /** PostBatchIn */
         PostBatchIn: {
             /** Account Ids */
@@ -511,6 +634,13 @@ export interface components {
             caption: string;
             /** Scheduled At */
             scheduled_at?: string | null;
+            /**
+             * Overrides
+             * @default {}
+             */
+            overrides: {
+                [key: string]: components["schemas"]["PlatformText"];
+            };
         };
         /** RescheduleIn */
         RescheduleIn: {
@@ -579,6 +709,15 @@ export interface components {
          * @enum {string}
          */
         YtKind: "short" | "video";
+        /** Ytdlp */
+        Ytdlp: {
+            /** Running */
+            running: string;
+            /** Installed */
+            installed: string;
+            /** Last Update */
+            last_update: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -1168,6 +1307,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    telegram_test_api_v1_settings_telegram_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ytdlp_update_api_v1_settings_ytdlp_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+        };
+    };
+    health_summary_api_v1_health_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthSummary"];
                 };
             };
         };

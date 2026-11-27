@@ -48,6 +48,7 @@ class Ytdlp(BaseModel):
 class HealthSummary(BaseModel):
     status: Literal["ok", "warn", "error"]
     problems: list[str]
+    notices: list[str]  # quota and API-budget limits (subset of problems)
     dry_run: bool
     accounts: list[AccountHealth]
     failed: int
@@ -69,6 +70,7 @@ def summary() -> HealthSummary:
     now = utcnow()
     errors: list[str] = []
     warnings: list[str] = []
+    notices: list[str] = []
     with Session(get_engine()) as s:
         accounts = []
         for a in s.exec(select(Account).where(Account.active).order_by(col(Account.label))):
@@ -93,7 +95,7 @@ def summary() -> HealthSummary:
                 elif days <= TOKEN_WARN_DAYS:
                     warnings.append(f"Login {a.label} kedaluwarsa {days} hari lagi.")
             if a.route is Route.ig_direct and used >= limit * 0.8:
-                warnings.append(f"Kuota {a.label} hari ini hampir habis ({used}/{limit}).")
+                notices.append(f"Kuota {a.label} hari ini hampir habis ({used}/{limit}).")
             accounts.append(
                 AccountHealth(
                     id=a.id,
@@ -135,13 +137,15 @@ def summary() -> HealthSummary:
             month_quota=month.get("q"),
         )
         if day.get("q") and day.get("r", 0) / day["q"] < 0.2:
-            warnings.append("Kuota API Buffer hari ini hampir habis. Pengiriman ke Buffer ditahan.")
+            notices.append("Kuota API Buffer hari ini hampir habis. Pengiriman ke Buffer ditahan.")
 
     running, installed = ytdlp_versions()
+    warnings += notices
     status: Literal["ok", "warn", "error"] = "error" if errors else "warn" if warnings else "ok"
     return HealthSummary(
         status=status,
         problems=errors + warnings,
+        notices=notices,
         dry_run=settings.dry_run,
         accounts=accounts,
         failed=failed,

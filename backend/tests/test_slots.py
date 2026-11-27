@@ -110,3 +110,49 @@ def test_preview_lists_next_slots_per_account(auth_client: TestClient, session: 
     got = [datetime.fromisoformat(t) for t in res.json()[account.id]]
     assert len(got) == 2 and got[0] < got[1]
     assert all(t.astimezone(UTC).minute == 30 for t in got)
+
+
+def test_platform_overrides_and_youtube_title(auth_client: TestClient, session: Session) -> None:
+    from app.models import Platform, Route
+
+    ig = make_account(session)
+    yt = make_account(session, label="YT #1", platform=Platform.youtube, route=Route.buffer)
+    media = make_media(session, status=MediaStatus.ready, orientation="vertical", duration_s=30)
+    res = auth_client.post(
+        "/api/v1/posts",
+        json={
+            "account_ids": [ig.id, yt.id],
+            "schedule_mode": "slot",
+            "items": [
+                {
+                    "media_id": media.id,
+                    "caption": "Caption umum",
+                    "overrides": {"youtube": {"title": "Judul YT", "caption": "Deskripsi YT"}},
+                }
+            ],
+        },
+    )
+    assert res.status_code == 201, res.text
+    by_label = {t["account"]["label"]: t for t in res.json()}
+    assert (by_label["IG #1"]["caption"], by_label["IG #1"]["title"]) == ("Caption umum", None)
+    assert (by_label["YT #1"]["caption"], by_label["YT #1"]["title"]) == (
+        "Deskripsi YT",
+        "Judul YT",
+    )
+
+
+def test_instagram_hashtag_limit(auth_client: TestClient, session: Session) -> None:
+    ig = make_account(session)
+    media = make_media(session, status=MediaStatus.ready)
+    tags = " ".join(f"#t{i}" for i in range(31))
+    res = auth_client.post(
+        "/api/v1/posts",
+        json={
+            "account_ids": [ig.id],
+            "schedule_mode": "slot",
+            "items": [
+                {"media_id": media.id, "caption": "ok", "overrides": {"ig": {"caption": tags}}}
+            ],
+        },
+    )
+    assert res.json()["error"]["message"] == "Caption Instagram maksimal 30 hashtag."
